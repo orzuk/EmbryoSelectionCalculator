@@ -13,7 +13,7 @@ clone the repository into a directory of your choice, and start an R session wit
 G <- gain.moments(10, 1, 'exact', 1)
 
 G$E.G will contian the expected gain (in units of standard deviations) in selecting the top quantitative trait out of n=10 embryos.
-G%Var.G will contain the variance of this gain. 
+G$Var.G will contain the variance of this gain. 
 
 
 
