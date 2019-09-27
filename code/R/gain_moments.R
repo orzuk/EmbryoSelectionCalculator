@@ -1,10 +1,11 @@
 # Compute first two moments of gain (for quantitative traits)
 # n - # of embryos
-# subtract.mean - subtract mean of x_i
+# h2ps - heritability explained by the polygenic score (We assumve Var(Z)=1. If not, then this should be: h2ps*Var(Z))
 # method.str - approx or exact
+# subtract.mean - subtract mean of x_i. If zero, we compute moments of the top score
 # sib.flag - include correlations between siblings 
 #
-gain.moments <- function(n, subtract.mean=1, method.str, sib.flag=1)
+gain.moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
 {
   switch (method.str,
           'approx'={
@@ -26,7 +27,7 @@ gain.moments <- function(n, subtract.mean=1, method.str, sib.flag=1)
     Var.G = Var.G - 1/(2^sib.flag*n)
   else
     Var.G = Var.G + 0.5*sib.flag # add constant contribution
-  return(list(E.G=E.G, Var.G=Var.G))
+  return(list(E.G=E.G*sqrt(h2ps), Var.G=Var.G*h2ps)) # correct for variance explained
 }  
 
 # Helper functios for integration:

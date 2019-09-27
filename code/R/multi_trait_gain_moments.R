@@ -6,7 +6,7 @@
 #
 multi.trait.gain.mean <- function(n, Sigma, w, method.str)
 {	
-  return ( gain.moments(n, 1, method.str)$E.G * sqrt(t(w) %*% Sigma %*% w) / sqrt(2)  )
+  return ( gain.moments(n, t(w) %*% Sigma %*% w / 2, method.str)$E.G )
 }
 
 # Usage example 
