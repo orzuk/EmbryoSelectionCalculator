@@ -24,7 +24,6 @@ plot(n_vec, p_k*n_vec)
 h.ps <- 0.3  # variane explained by the polygenic score 
 prev <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
 
-
 sigma.blocks = chr.lengths * h.ps
 Sigma.K <- 0.5*diag(C) + matrix(0.5, nrow=C, ncol=C)   # kinship-correlations matrix 
 is.positive.definite(Sigma.K)
@@ -40,4 +39,16 @@ C.mat = C.mat / rowSums(C.mat)
 X.c = compute_X_c_vec(X, c.vec)
 X.c2 = compute_X_C_mat(X, C.mat)
 
-simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, sigma.blocks, prev) # vectorize later    Z, K, E, n_sims = 1000) {
+
+V = t(array(c(c(7,0,2), c(1,2,3), c(4,5,4), c(2,4,1), c(-4,-1,6), c(3,2,1)), dim=c(3,5)))
+V
+V.pareto = get_pareto_optimal_vecs(V)
+V.pareto
+
+loss.C <- "disease"
+loss.params <- c()
+loss.params$K <- prev
+loss.params$h.ps <- rep(h.ps, T)
+x.opt <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+
+
