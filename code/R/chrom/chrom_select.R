@@ -3,6 +3,7 @@ library(mvtnorm)
 library(rWishart)
 library(matrixcalc)
 library(pracma)
+library(tensor)
 
 chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,0.0441,
                                      0.0446,0.0440,0.0377,0.0353,0.0336,0.0298,0.0275,0.0265,0.0193,0.0213,0.0154,0.0168,0.0515)
@@ -72,40 +73,108 @@ loss_PS <- function(X.c, loss.type, loss.params)
   
   if(loss.type == 'disease')  # weighted disease probability 
   {
-    z.K <- qnorm(loss.params$K)*sqrt(loss.params$h.ps)
-    loss <- sum(dnorm( (X.c - z.K)/sqrt(loss.params$h.ps)  ) * loss.params$theta) 
+    z.K <- qnorm(loss.params$K)
+    loss <- sum(pnorm( (z.K-X.c)/sqrt(1-loss.params$h.ps)  ) * loss.params$theta) 
   }
   
   return(loss)
 }  
 
-hessian_loss_PS <- function()
-{
-  
-}
 
 
 
 
-# The gradient for the loss 
+# The gradient for the loss.
+# Return a matrix of size: M*C
 grad_loss_PS <- function(X, C, loss.type, loss.params)
 {
   if(loss.type == "balancing")
   {
-    
+    return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2)) )
   }
   
   if(loss.type == 'disease')
   {
-    
+    z.K <- qnorm(loss.params$K)
+    Sigma.eps.inv <- 1/(1-sqrt(loss.params$h.ps))
+    X.c <- compute_X_C_mat(X, C)
+    return( tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) ) 
   }
 }  
 
-hessian_loss_PS <- function()
+
+# The hessian matrix of the loss. 
+# Return a 4-order tensor of size: (M*C)*(M*C)
+hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
 {
+  M = dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
   
+  H <- array(0,c(M,C,M,C))  # 4-th order tensor  
+  if(loss.type == "balancing")
+  {
+    for(i in c(1:M))
+      for(j in c(1:C))
+      {
+        H[i,j,,] <- 2*loss.params$theta[1] * X[i,j,1] * X[,,1]
+        for(k in c(2:T))
+          H[i,j,,] <- H[i,j,,] + 2*loss.params$theta[k] * X[i,j,k] * X[,,k]
+      }
+  }
+  if(loss.type == 'disease')
+  {
+    z.K <- qnorm(loss.params$K)
+    Sigma.eps.inv <- 1/(1-sqrt(loss.params$h.ps))
+    X.c <- compute_X_C_mat(X, C.mat)
+    alpha <- loss.params$theta * Sigma.eps.inv^3 * (z.K - X.c) * dnorm ((z.K - X.c)*Sigma.eps.inv)
+    for(i in c(1:M))
+      for(j in c(1:C))
+      {
+        H[i,j,,] <- alpha[1] * X[i,j,1] * X[,,1]
+        for(k in c(2:T))
+          H[i,j,,] <- H[i,j,,] + alpha[k] * X[i,j,k] * X[,,k]
+      }
+  }
+  return(H)    
 }
 
+
+# Mutiply a tensor by matrix 
+# X - a 3rd-prder tensor
+# M - a matrix 
+tensor_matrix_prod <- function(X, A, ax=3)
+{
+  if(ax == 2)
+  {
+    
+    R = sweep(X[,1,], MARGIN=1, A[,1], `*`)
+    for(i in 2:dim(X)[ax])
+      R <- R + sweep(X[,i,], MARGIN=1, A[,i], `*`) # X[,i,] * A[,i]
+  }
+  if(ax == 3)
+  {
+    R = X[,,1] * A
+    for(i in 2:dim(X)[ax])
+      R <- R + X[,,i] * A
+  }
+  return(R)
+}
+
+
+# Mutiply a tensor by vector
+# X - a 3rd-prder tensor
+# v - a vector 
+tensor_vector_prod <- function(X, A, ax=3)
+{
+  if(ax == 3)
+  {
+    R = X[,,1] * v[1]
+    for(i in 2:length(v))
+      R <- R + X[,,i] * v[i]
+  }
+  return(R)
+}
 
 
 # a function for optimizing the selection of chromosomes:
@@ -161,34 +230,55 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   cur.X <- X[1,,]
   cur.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors 
   L <- dim(cur.X)[1]
+  if(is.null(L)) # one dimensional array 
+    L = 1
+  print(cur.X)
+  print(L)
+  print(paste("L=", L, " before ..."))
   
+  L.vec <- rep(0, M)
+  L.vec[1] = L
+  print(paste("L=", L, " start loop"))
   for( i in c(2:M))
   {  
+    L <- dim(cur.X)[1]
+    if(is.null(L)) # one dimensional array 
+      L = 1
     print(paste0("Start B&B i=", i))
-
     new.X <- c()
     for(j in c(1:L))  # loop over all vectors in the current stack      
       for  (c in c(1:C))  # loop over possible vectors to add 
       {
+        if(L == 1)
+          v = cur.X+X[i,c,]
+        else
+          v = cur.X[j,]+X[i,c,]
 #        print("Start if")
-        if(is_pareto_optimal(X[i,c,], new.X))
-          new.X  <- rbind(new.X, X[i,c,])
+        if(is_pareto_optimal(v, new.X))
+          new.X  <- rbind(new.X, v)
       }
     cur.X <- new.X
     L <- dim(new.X)[1]  
+    L.vec[i] = L
     print(paste("Stack Size:", L))
   }
     
-   
-  # Finally find the cost-minimizer out of  the Pareto-optimal vectors
+  # Finally find the cost-minimizer out ofthe Pareto-optimal vectors
   L <- dim(cur.X)[1]
-  loss.vec <- rep(0, L)
-  for(i in 1:L)
-    loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
+  if(is.null(L)) # one dimensional array 
+  {
+    L = 1
+    loss.vec = loss_PS(cur.X, loss.C, loss.params)
+  }  else
+  {
+    loss.vec <- rep(0, L)
+    for(i in 1:L)
+      loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
+  }
   print(loss.vec)
   i.min <- which.min(loss.vec) # loss_PS(cur.X, loss.C, loss.params))
     
-  return(cur.X[i.min,])
+  return(list(opt.X = cur.X[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
 }
 
 
