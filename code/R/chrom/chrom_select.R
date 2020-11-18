@@ -4,6 +4,7 @@ library(rWishart)
 library(matrixcalc)
 library(pracma)
 library(tensor)
+library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 
 chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,0.0441,
                                      0.0446,0.0440,0.0377,0.0353,0.0336,0.0298,0.0275,0.0265,0.0193,0.0213,0.0154,0.0168,0.0515)
@@ -28,6 +29,22 @@ simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, sigma.blocks, prev)
 #  D = X + G_X + E 
   return(X)    
 #  return(list(X=X, D=D))
+}
+
+
+# One-hot encoding as a matrix
+c_vec_to_onehot <- function(c.vec, T)
+{
+  C.mat <- matrix(0, dim(c.vec)[1], T)
+  for(i in 1:dim(c.vec)[1])
+    C.mat[i, c.vec[i]] <- 1
+  return(C.mat)
+}
+
+# One-hot encoding as a matrix
+c_onehot_to_vec <- function(C.mat)
+{
+  return(max.col(C.mat))
 }
 
 
@@ -177,11 +194,80 @@ tensor_vector_prod <- function(X, A, ax=3)
 }
 
 
+# Project each row of a matrix onto the simplex 
+project_stochastic_matrix <- function(C.mat)
+{
+  C.proj <- C.mat
+  for(i in 1:dim(C.mat)[1])
+    C.proj[i,] <- projsplx_2(C.mat[i,])
+  return (C.proj)
+}
+  
+
 # a function for optimizing the selection of chromosomes:
 # Run the optimization to find the optimal C:
-optimize_C <- function(X, C_init, loss_C, loss.params)
+optimize_C_relax <- function(X, C.init, loss.C, loss.params)
 {
+  M = dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
   
+  
+  # set defaults 
+  if(isempty(C.init))
+  {
+    print("SET INIT")
+    C.init <- matrix(1/C, M, C)
+    print(dim(C.init))
+  }
+  if(!("mu.init" %in% names(loss.params)))  
+    loss.params$mu.init <- 0.01 
+  if(!("decay" %in% names(loss.params)))  
+    loss.params$decay <- "inverse" 
+  if(!("beta" %in% names(loss.params)))  
+    loss.params$beta <- 0.9 
+  if(!("epsilon" %in% names(loss.params)))  
+    loss.params$epsilon <- 0.000001 
+  if(!("max.iters" %in% names(loss.params)))  
+    loss.params$max.iters <- 10000 
+  
+  loss.vec <- rep(0, loss.params$max.iters)
+  loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.C, loss.params)
+  delta.loss <- 999999
+  mu.t <- loss.params$mu.init
+  C.cur <- C.init
+  t <- 1
+  print("start while")
+  while((abs(delta.loss) > loss.params$epsilon) & (t<=loss.params$max.iters)) # Projected gradient descent
+  {
+    if(t%%50 == 0)
+      print(paste("while t=", t))
+    C.next <- C.cur + mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params)
+#    print(paste("while project t=", t))
+#    print(C.cur)
+#    print("Grad:")
+#    print(mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params))
+#    print("Next:")
+#    print(C.next)
+#    dim(C.next)
+    C.cur <- project_stochastic_matrix(C.next)
+    if(loss.params$decay == "exp") # exponential decay
+      mu.t <- mu.t * loss.params$beta  # update step size 
+    if(loss.params$decay == "inverse") # 1/t decay
+      mu.t <- loss.params$mu.init / (1 + loss.params$beta*t)
+
+    t <- t+1
+    loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.C, loss.params)
+    delta.loss <- loss.vec[t] - loss.vec[t-1]    
+        # otherwise constant learning rate 
+  }
+    
+    
+  c.vec <- max.col(C.cur) # Convert to zero-one 
+  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
+  opt.X <- compute_X_C_mat(X, C.cur)
+      
+  return(list(opt.X=opt.X, opt.loss=opt.loss, c.opt=c.vec, loss.vec=loss.vec[1:t]))
 }
 
 
@@ -225,9 +311,12 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   M = dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
-  
+
+  # Need to save also c-vec for each branch
+    
   print("Start B&B")
   cur.X <- X[1,,]
+  cur.c <- 1:C
   cur.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors 
   L <- dim(cur.X)[1]
   if(is.null(L)) # one dimensional array 

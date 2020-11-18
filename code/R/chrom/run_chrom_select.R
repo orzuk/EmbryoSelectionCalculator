@@ -58,7 +58,9 @@ loss.params <- c()
 loss.params$K <- prev
 loss.params$h.ps <- rep(h.ps, T)
 loss.params$theta <- theta
-sol <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+sol.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
+
 
 average.disease.loss = sum(loss.params$theta * loss.params$K)
 print(paste("Optimal disease loss: ", sol$opt.loss, " Average disease loss: ", average.disease.loss))
@@ -73,3 +75,10 @@ print(paste("Optimal disease loss: ", sol$opt.loss, " Average disease loss: ", a
 
 sol$L.vec
 
+
+# Check projection: 
+C.mat <- V / sum(V)
+C.proj <- project_stochastic_matrix(C.mat)
+C.proj  
+
+  
