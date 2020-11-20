@@ -59,7 +59,11 @@ loss.params$K <- prev
 loss.params$h.ps <- rep(h.ps, T)
 loss.params$theta <- theta
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-sol.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
+
+loss.C <- "balancing"
+bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
+bal.exact <- optimize_C_balancing_exact(X, loss.C, loss.params)
 
 
 average.disease.loss = sum(loss.params$theta * loss.params$K)

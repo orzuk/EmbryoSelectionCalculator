@@ -212,7 +212,6 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
   C <- dim(X)[2]
   T <- dim(X)[3]
   
-  
   # set defaults 
   if(isempty(C.init))
   {
@@ -275,12 +274,32 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
 pareto_P <- function(n, k)
 {
   r <- 0
-  for(i in c(0:n))
+  for(i in c(1:n))
   {
-    r <- r + choose(n,i) * (-1)^i / (1+i)^k
+    r <- r + choose(n-1,i-1) * (-1)^(i-1) / i^k
   }
   return(r)
 }
+
+
+# Probability that a random Gaussian vector i.i.d. of dimension k is pareto out of n vectors 
+pareto_P2 <- function(n, k)
+{
+  if( k == 1)
+    return(1/n)
+  
+  p <- 0
+  for(i in c(1:n))
+    p <- p + pareto_P2(i, k-1)
+  return(p/n)    
+}
+
+# Enumerate all multisubsets. Should work only for small n,k
+#pareto_P3 <- function(n, k)
+#{
+#  return ( sum(1/colprods(combn(1:n,k)+0.0))/n ) # This doesn't include equalities !! 
+#}
+
 
 
 # Check if vector x is not dominated by any vector in X.mat
@@ -308,7 +327,7 @@ get_pareto_optimal_vecs <- function(X)
 # A branch and bound algorithm 
 optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 {
-  M = dim(X)[1]
+  M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
 
@@ -370,4 +389,34 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   return(list(opt.X = cur.X[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
 }
 
+# A closed-form solution for the case of balancing selection 
+optimize_C_balancing_exact <- function(X, loss.C, loss.params)
+{
+  M <- dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
+  
+#  A <- grad_loss_PS(X, C, "balancing", loss.params)
 
+  A <- matrix(0, nrow=M*C, ncol=M*C)
+  for(k in c(1:T))
+    A <- A + as.vector(X[,,k]) %*% t(as.vector(X[,,k]))
+    
+  E <- matrix(0, nrow=M, ncol=M*C)
+  for(i in c(1:M))
+    E[i,((i-1)*C+1):(i*C)] <- 1
+  
+  b <- c(rep(0, M*C), rep(1, M)) # free vector for linear system   
+  
+  Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
+  
+  v <- solve(Big.A, b) # Solve system
+  
+  c.vec <- max.col(matrix(v[1:(M*C)], nrow=M, ncol=C)) # Convert to matrix and take max of each row 
+  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
+  opt.X <- compute_X_c_vec(X, c.vec)
+  
+  return(list(opt.X=opt.X, opt.loss=opt.loss, c.opt=c.vec))
+  
+}
+  
