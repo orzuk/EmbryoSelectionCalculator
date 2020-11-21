@@ -354,6 +354,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
       L = 1
     print(paste0("Start B&B i=", i))
     new.X <- c()
+    new.c <- c()
     for(j in c(1:L))  # loop over all vectors in the current stack      
       for  (c in c(1:C))  # loop over possible vectors to add 
       {
@@ -363,9 +364,13 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
           v = cur.X[j,]+X[i,c,]
 #        print("Start if")
         if(is_pareto_optimal(v, new.X))
-          new.X  <- rbind(new.X, v)
+        {
+          new.X <- rbind(new.X, v)
+          new.c <- rbind(new.c, c(cur.c[j,], c) )
+        }
       }
     cur.X <- new.X
+    cur.c <- new.c
     L <- dim(new.X)[1]  
     L.vec[i] = L
     print(paste("Stack Size:", L))
@@ -386,7 +391,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   print(loss.vec)
   i.min <- which.min(loss.vec) # loss_PS(cur.X, loss.C, loss.params))
     
-  return(list(opt.X = cur.X[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
+  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
 }
 
 # A closed-form solution for the case of balancing selection 
