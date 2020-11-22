@@ -21,7 +21,7 @@ simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, sigma.blocks, prev)
   for(i in 1:M)
     for(j in 1:C)
     {
-      X[i,j,] <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
+      X[i,j,] <- rmvnorm(1, mean = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
     }
   
   # Next simulate disease D
@@ -72,7 +72,6 @@ compute_X_C_mat <- function(X, C.mat)
   
   return(X.c)
 }
-
 
 
 
@@ -180,9 +179,9 @@ tensor_matrix_prod <- function(X, A, ax=3)
 
 
 # Mutiply a tensor by vector
-# X - a 3rd-prder tensor
+# X - a 3rd-order tensor
 # v - a vector 
-tensor_vector_prod <- function(X, A, ax=3)
+tensor_vector_prod <- function(X, v, ax=3)
 {
   if(ax == 3)
   {
@@ -320,10 +319,11 @@ get_pareto_optimal_vecs <- function(X)
   is.pareto = rep(0,n)
   for(i in 1:n)
     is.pareto[i] = max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
-#  which(is.pareto)
-  return(X[which(as.logical(is.pareto)),])
+  pareto.inds <- which(as.logical(is.pareto))
+  return(list(pareto.X=X[pareto.inds,], pareto.inds=pareto.inds))
 }
   
+
 # A branch and bound algorithm 
 optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 {
@@ -335,14 +335,16 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     
   print("Start B&B")
   cur.X <- X[1,,]
-  cur.c <- 1:C
-  cur.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors 
+#  cur.c <- 1:C
+  par.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors 
+  cur.c <- t(t(par.X$pareto.inds))
+  cur.X <- par.X$pareto.X
   L <- dim(cur.X)[1]
   if(is.null(L)) # one dimensional array 
     L = 1
-  print(cur.X)
-  print(L)
-  print(paste("L=", L, " before ..."))
+#  print(cur.X)
+#  print(L)
+#  print(paste("L=", L, " before ..."))
   
   L.vec <- rep(0, M)
   L.vec[1] = L
@@ -366,7 +368,10 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
-          new.c <- rbind(new.c, c(cur.c[j,], c) )
+          if(L == 1)
+            new.c <- rbind(new.c, c(cur.c[j], c) )
+          else
+            new.c <- rbind(new.c, c(cur.c[j,], c) )
         }
       }
     cur.X <- new.X

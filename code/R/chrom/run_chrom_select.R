@@ -2,6 +2,7 @@
 library(mvtnorm)
 library(rWishart)
 library(matrixcalc)
+library(Rfast)
 setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
 source("chrom_select.R")
 
@@ -9,15 +10,15 @@ source("chrom_select.R")
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 4 # number of chromosomal copies
 T <- 5 # number of traits
-M <- 22 # number of blocks 
+M <- 12 # number of blocks 
 
 df <- 5 # For wishart distirbution
-k <- 1
+k <- 5
 max_n <- 50
 n_vec <- c(1:max_n)
 p_k <- rep(0, max_n)
 for(n in n_vec)
-  p_k[n] <- pareto_P(n, k)
+  p_k[n] <- pareto_P2(n, k)
 
 plot(n_vec, p_k*n_vec)
 
@@ -40,6 +41,12 @@ C.mat = C.mat / rowSums(C.mat)
 X.c = compute_X_c_vec(X, c.vec)
 X.c2 = compute_X_C_mat(X, C.mat)
 
+loss.C <- "disease"
+loss.params <- c()
+loss.params$K <- prev
+loss.params$h.ps <- rep(h.ps, T)
+loss.params$theta <- theta
+
 loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
 g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
 g.b = grad_loss_PS(X, C.mat, "balancing", loss.params)
@@ -53,11 +60,6 @@ V
 V.pareto = get_pareto_optimal_vecs(V)
 V.pareto
 
-loss.C <- "disease"
-loss.params <- c()
-loss.params$K <- prev
-loss.params$h.ps <- rep(h.ps, T)
-loss.params$theta <- theta
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 
 loss.C <- "balancing"
