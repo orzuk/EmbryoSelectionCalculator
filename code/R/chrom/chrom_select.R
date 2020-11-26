@@ -82,7 +82,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
   if(loss.type == "quant")
     loss <- sum(X.c * loss.params$theta)
   
-  if(loss.type == "balancing")
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
     loss <- sum(X.c^2 * loss.params$theta)    
   }
@@ -104,7 +104,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
 # Return a matrix of size: M*C
 grad_loss_PS <- function(X, C, loss.type, loss.params)
 {
-  if(loss.type == "balancing")
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
     return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2)) )
   }
@@ -128,7 +128,7 @@ hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
   T <- dim(X)[3]
   
   H <- array(0,c(M,C,M,C))  # 4-th order tensor  
-  if(loss.type == "balancing")
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
     for(i in c(1:M))
       for(j in c(1:C))
@@ -219,11 +219,16 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     print(dim(C.init))
   }
   if(!("mu.init" %in% names(loss.params)))  
-    loss.params$mu.init <- 0.01 
+    loss.params$mu.init <- 1 
   if(!("decay" %in% names(loss.params)))  
     loss.params$decay <- "inverse" 
   if(!("beta" %in% names(loss.params)))  
-    loss.params$beta <- 0.9 
+  {
+    if(loss.params$decay == "inverse")
+      loss.params$beta <- 0.01 
+    else 
+      loss.params$beta <- 0.99 
+  }
   if(!("epsilon" %in% names(loss.params)))  
     loss.params$epsilon <- 0.000001 
   if(!("max.iters" %in% names(loss.params)))  
@@ -233,6 +238,8 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
   loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.C, loss.params)
   delta.loss <- 999999
   mu.t <- loss.params$mu.init
+  mu.t.vec <- rep(0, loss.params$max.iters)
+  mu.t.vec[1] <- mu.t
   C.cur <- C.init
   t <- 1
   print("start while")
@@ -253,8 +260,9 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
       mu.t <- mu.t * loss.params$beta  # update step size 
     if(loss.params$decay == "inverse") # 1/t decay
       mu.t <- loss.params$mu.init / (1 + loss.params$beta*t)
-
+    
     t <- t+1
+    mu.t.vec[t] <- mu.t
     loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.C, loss.params)
     delta.loss <- loss.vec[t] - loss.vec[t-1]    
         # otherwise constant learning rate 
@@ -265,7 +273,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_C_mat(X, C.cur)
       
-  return(list(opt.X=opt.X, opt.loss=opt.loss, c.opt=c.vec, loss.vec=loss.vec[1:t]))
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t]))
 }
 
 
@@ -399,7 +407,20 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
 }
 
+
+###############################################################
 # A closed-form solution for the case of balancing selection 
+#
+# Input: 
+# X - tensor of polygenic scores 
+# loss.C - string signifying loss type
+# loss.params - parameters of the loss function
+#
+# Output: 
+# opt.X - optimal X 
+# opt.loss - 
+# .c.opt - optimal value of the loss 
+###############################################################
 optimize_C_balancing_exact <- function(X, loss.C, loss.params)
 {
   M <- dim(X)[1]
@@ -426,7 +447,6 @@ optimize_C_balancing_exact <- function(X, loss.C, loss.params)
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec)
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, c.opt=c.vec))
-  
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec))
 }
   
