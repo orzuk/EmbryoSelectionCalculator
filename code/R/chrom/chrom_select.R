@@ -21,11 +21,11 @@ simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, sigma.blocks, prev)
   for(i in 1:M)
     for(j in 1:C)
     {
-      X[i,j,] <- rmvnorm(1, mean = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
+      X[i,j,] <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
     }
   
   # Next simulate disease D
-#  E <- rmvnorm(1, mean = rep(0, T), sigma = Sigma.T) * h2 # add envirounmental noise 
+#  E <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * h2 # add envirounmental noise 
 #  D = X + G_X + E 
   return(X)    
 #  return(list(X=X, D=D))
@@ -247,7 +247,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
   {
     if(t%%50 == 0)
       print(paste("while t=", t))
-    C.next <- C.cur + mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params)
+    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params) # move in minus gradient direction (minimization) 
 #    print(paste("while project t=", t))
 #    print(C.cur)
 #    print("Grad:")
@@ -271,9 +271,11 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     
   c.vec <- max.col(C.cur) # Convert to zero-one 
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
-  opt.X <- compute_X_C_mat(X, C.cur)
-      
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t]))
+  opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
+
+        
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t], 
+              C.mat=C.cur))
 }
 
 
@@ -409,7 +411,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 
 
 ###############################################################
-# A closed-form solution for the case of balancing selection 
+# A closed-form solution for the case of stabilizing selection 
 #
 # Input: 
 # X - tensor of polygenic scores 
@@ -421,32 +423,35 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 # opt.loss - 
 # .c.opt - optimal value of the loss 
 ###############################################################
-optimize_C_balancing_exact <- function(X, loss.C, loss.params)
+optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 {
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
-  
-#  A <- grad_loss_PS(X, C, "balancing", loss.params)
+#  A <- grad_loss_PS(X, C, "stabilizing", loss.params)
 
   A <- matrix(0, nrow=M*C, ncol=M*C)
   for(k in c(1:T))
-    A <- A + as.vector(X[,,k]) %*% t(as.vector(X[,,k]))
-    
+#    A <- A + 2 * loss.params$theta[k] *  as.vector((X[,,k])) %*% t(as.vector((X[,,k])))
+    A <- A + 2 * loss.params$theta[k] *  as.vector(t(X[,,k])) %*% t(as.vector(t(X[,,k])))
   E <- matrix(0, nrow=M, ncol=M*C)
   for(i in c(1:M))
     E[i,((i-1)*C+1):(i*C)] <- 1
-  
   b <- c(rep(0, M*C), rep(1, M)) # free vector for linear system   
-  
   Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
   
-  v <- solve(Big.A, b) # Solve system
+#  return(list(  Big.A=Big.A, b=b)) # temp debug
   
-  c.vec <- max.col(matrix(v[1:(M*C)], nrow=M, ncol=C)) # Convert to matrix and take max of each row 
+  if(T+2*M >= (C+1)*M)
+    v <- solve(Big.A, b) # Solve system
+  else  
+    v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse
+  C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
+  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
+  c.vec <- max.col(C.mat) # Convert to matrix and take max of each row 
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec)
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec))
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
+              Big.A=Big.A, b=b))
 }
-  

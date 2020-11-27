@@ -8,9 +8,9 @@ source("chrom_select.R")
 
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
-C <- 4 # number of chromosomal copies
+C <- 2 # number of chromosomal copies
 T <- 5 # number of traits
-M <- 12 # number of blocks 
+M <- 10 # number of blocks 
 
 df <- 5 # For wishart distirbution
 k <- 5
@@ -31,6 +31,7 @@ Sigma.K <- 0.5*diag(C) + matrix(0.5, nrow=C, ncol=C)   # kinship-correlations ma
 is.positive.definite(Sigma.K)
 Sigma <- 0.5*diag(T) + matrix(0.5, nrow=T, ncol=T)   # trait-correlations matrix 
 Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
+
 X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, sigma.blocks, prev)
 
 # Example of choosing the index for each block
@@ -49,10 +50,10 @@ loss.params$theta <- theta
 
 loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
 g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
-g.b = grad_loss_PS(X, C.mat, "balancing", loss.params)
+g.b = grad_loss_PS(X, C.mat, "stabilizing", loss.params)
 
 H.d = hessian_loss_PS(X, C.mat, "disease", loss.params)
-H.b = hessian_loss_PS(X, C.mat, "balancing", loss.params)
+H.b = hessian_loss_PS(X, C.mat, "stabilizing", loss.params)
 
 
 V = t(array(c(c(7,0,2), c(1,2,3), c(4,5,4), c(2,4,1), c(-4,-1,6), c(3,2,1)), dim=c(3,5)))
@@ -62,10 +63,26 @@ V.pareto
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 
-loss.C <- "balancing"
+loss.C <- "stabilizing"
 bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
-bal.exact <- optimize_C_balancing_exact(X, loss.C, loss.params)
+bal.exact <- optimize_C_stabilizing_exact(X, loss.C, loss.params)
+bal.relax2 <- optimize_C_relax(X, bal.exact$C.mat, loss.C, loss.params)
+plot(bal.relax2$loss.vec)
+
+grad_loss_PS(X, bal.exact$C.mat, loss.C, loss.params)
+
+C.mat <- bal.exact$C.mat
+#C.mat <- matrix(runif(M*C), nrow=M, ncol=C)
+#C.mat <- C.mat / rowSums(C.mat)
+X.c <- compute_X_C_mat(X, C.mat)
+LOSS1 <- loss_PS(X.c, loss.C, loss.params)
+C.mat.to.vec <- as.vector(t(C.mat))
+A <- bal.exact$Big.A[1:(M*C),1:(M*C)]
+LOSS2 <- 0.5 * t(C.mat.to.vec) %*% A %*% (C.mat.to.vec)
+print(LOSS1)
+print(LOSS2)
+
 
 
 average.disease.loss = sum(loss.params$theta * loss.params$K)
