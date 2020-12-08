@@ -303,6 +303,52 @@ pareto_P2 <- function(n, k)
   return(p/n)    
 }
 
+
+# Asymptotic approximation
+pareto_P_approx <- function(n, k)
+{
+  return (log(n)^(k-1) / (n*factorial(k-1)))
+}
+
+
+# Compute pareto optimal probability under indepndence with simmmulations 
+pareto_P_sim <- function(n, k, iters=1000)
+{
+  n.pareto <- 0
+  for(i in 1:iters)
+  {
+    n.pareto <- n.pareto + length(get_pareto_optimal_vecs(matrix(runif(n*k), nrow=n, ncol=k))$pareto.inds) # Simulate vectors 
+  }
+  return(n.pareto / (iters*n))
+}
+  
+
+# Compare different methods for calculating p_k(n)
+compare_pareto_P <- function(n.vec, k)
+{
+  num.n <- length(n.vec)
+  p.k <- rep(0, num.n)
+  p.k.asymptotic <- rep(0, num.n)
+  p.k.sim <- rep(0, num.n)
+  for(i in 1:num.n)
+  {
+    n <- n.vec[i]
+    p.k[i] <- pareto_P2(n, k)
+    p.k.asymptotic[i] <- pareto_P_approx(n, k)
+    p.k.sim[i] <- pareto_P_sim(n, k)
+    # add also simulation  
+  }
+  plot(n.vec, p.k*n.vec, xlab="n", ylab="p_k(n) n")  # exact 
+  points(n.vec, p.k.asymptotic*n.vec, col="green")  # asymptotic 
+  points(n.vec, p.k.sim*n.vec, col="red")  # simulation 
+  legend(0.75 * max(n.vec), 5,  c("exact", "approx", "sim"), col=c("black", "green", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+  
+  return( list(p.k=p.k, p.k.sim=p.k.sim, p.k.asymptotic=p.k.asymptotic) )
+  
+}
+  
+  
+  
 # Enumerate all multisubsets. Should work only for small n,k
 #pareto_P3 <- function(n, k)
 #{
@@ -317,20 +363,18 @@ is_pareto_optimal <- function(x, X.mat)
   epsilon = 0.0000000000000000000000001
   if(isempty(X.mat))
     return(TRUE)
-  return( max(colMins(t(replicate(dim(X.mat)[1], x))+epsilon - X.mat, value=TRUE)) >= 0 )
+  return( min(rowMaxs(t(replicate(dim(X.mat)[1], x))+epsilon - X.mat, value=TRUE)) >= 0 )
 }
 
 # Extract only pareto-optimal vectors in a matrix
-get_pareto_optimal_vecs <- function(X)
+get_pareto_optimal_vecs <- function(X.mat)
 {
-  epsilon = 0.0000000000000000000000001
-  n = dim(X)[1]
-  print(n)
+  n = dim(X.mat)[1]
   is.pareto = rep(0,n)
   for(i in 1:n)
-    is.pareto[i] = max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
+    is.pareto[i] = is_pareto_optimal(X.mat[i,], X.mat) #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
   pareto.inds <- which(as.logical(is.pareto))
-  return(list(pareto.X=X[pareto.inds,], pareto.inds=pareto.inds))
+  return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
 }
   
 
@@ -346,16 +390,13 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   print("Start B&B")
   cur.X <- X[1,,]
 #  cur.c <- 1:C
-  par.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors 
+  par.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors . Needs fixing 
   cur.c <- t(t(par.X$pareto.inds))
   cur.X <- par.X$pareto.X
   L <- dim(cur.X)[1]
   if(is.null(L)) # one dimensional array 
     L = 1
-#  print(cur.X)
-#  print(L)
-#  print(paste("L=", L, " before ..."))
-  
+
   L.vec <- rep(0, M)
   L.vec[1] = L
   print(paste("L=", L, " start loop"))
@@ -374,7 +415,6 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
           v = cur.X+X[i,c,]
         else
           v = cur.X[j,]+X[i,c,]
-#        print("Start if")
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
@@ -403,8 +443,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     for(i in 1:L)
       loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
   }
-  print(loss.vec)
-  i.min <- which.min(loss.vec) # loss_PS(cur.X, loss.C, loss.params))
+  i.min <- which.min(loss.vec) # find vector minimizing loss 
     
   return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
 }
@@ -455,3 +494,48 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
               Big.A=Big.A, b=b))
 }
+
+
+# From Shai: 
+
+risk_lowest = function(r2,K,n)
+{
+  r = sqrt(r2)
+  zk = qnorm(K) # , lower.tail=F)
+  integrand_lowest = function(t)
+  {
+    arg = (zk-t*sqrt(1-r2/2)) / (r/sqrt(2))
+    y = dnorm(t)*pnorm(arg)^n # , lower.tail=F
+    return(y)
+  }
+  risk = integrate(integrand_lowest,-Inf,Inf)$value
+#  reduction = (K-risk)/K
+  return(risk)
+}
+
+
+risk_lowest_conditional = function(r2,K,n,qf,qm) # ,relative=T)
+{
+  r = sqrt(r2)
+  zk = qnorm(K)
+  zqf = qnorm(qf)
+  zqm = qnorm(qm)
+  c = (zqf+zqm)/2 * r
+  baseline = pnorm((zk-c)/sqrt(1-r^2/2)) # without selection
+  integrand_lowest_cond = function(t)
+  {
+    arg = (zk-c-t*sqrt(1-r^2)) / (r/sqrt(2))
+    y = dnorm(t)*pnorm(arg)^n
+    return(y)
+  }
+  risk = integrate(integrand_lowest_cond,-Inf,Inf)$value
+#  if (relative) {
+#    reduction = (baseline-risk)/baseline
+#  } else {
+#    reduction = baseline-risk
+#  }
+  return(list(baseline=baseline, risk=risk))
+}
+
+
+

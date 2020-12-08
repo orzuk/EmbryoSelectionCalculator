@@ -6,21 +6,30 @@ library(Rfast)
 setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
 source("chrom_select.R")
 
-
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 2 # number of chromosomal copies
 T <- 5 # number of traits
-M <- 10 # number of blocks 
+M <- 22 # number of blocks 
 
 df <- 5 # For wishart distirbution
 k <- 5
-max_n <- 50
+max_n <- 20
 n_vec <- c(1:max_n)
+par <- compare_pareto_P(n_vec, k)
+
+plot(n.vec, par$p.k*n.vec, xlab="n", ylab="p_k(n) n")  # exact 
+points(n.vec, par$p.l.asymptotic*n.vec, col="green")  # asymptotic 
+points(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
+legend(0.75 * max(n.vec), 5,   lwd=c(2,2,2), c("exact", "approx", "sim"), col=c("black", "green", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+
+
 p_k <- rep(0, max_n)
 for(n in n_vec)
+{
   p_k[n] <- pareto_P2(n, k)
-
-plot(n_vec, p_k*n_vec)
+  # add also simulation  
+}
+plot(n_vec, p_k*n_vec, xlab="n", ylab="p_k(n) n")  # analytic 
 
 h.ps <- 0.3  # variane explained by the polygenic score 
 prev <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
@@ -105,3 +114,14 @@ C.proj <- project_stochastic_matrix(C.mat)
 C.proj  
 
   
+
+# Test pareto-optimal function for k=2:
+n <- 50
+k <- 2
+X.mat <- matrix(runif(n*k), nrow=n, ncol=k)
+P <- get_pareto_optimal_vecs(X.mat)
+
+plot(X.mat[,1], X.mat[,2])
+points(P$pareto.X[,1], P$pareto.X[,2], pch=20, col="red", cex=2)
+
+
