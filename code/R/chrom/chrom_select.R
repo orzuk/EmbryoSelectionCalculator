@@ -14,16 +14,36 @@ chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,
 
 
 # Simulate a tensor of polygenic scores risk 
-simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, sigma.blocks, prev) # vectorize later    Z, K, E, n_sims = 1000) {
+###X = simulate_PS_chrom_disease_risk(M, C, k, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+
+simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, Sigma.K, sigma.blocks, prev) # vectorize later    Z, K, E, n_sims = 1000) {
 {
   X = array(0, dim=c(M, C, T))
-  
+
+  print("Sim vec")  
   for(i in 1:M)
     for(j in 1:C)
     {
       X[i,j,] <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
     }
+
+  # New: don't assume independence, use Kinship coefficient
+  print("Sim mat")  
+#  print(dim(Sigma.T))
+#  print(dim(Sigma.K))
+#  print(T)
+#  print(C)
+  for(i in 1:M)
+  {
+    X[i,,] <- rmatnorm(1, Sigma.T, Sigma.K, M=matrix(0, nrow=T, ncol=C))  * sigma.blocks[i]  # V, M = matrix(0, nrow = nrow(U), ncol = nrow(V)))
+#    print("dim A:")
+#    print(dim(A))
+#    print(" dim X")
+#    print(dim(X[i,j,]))
+  }   
+#      rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
   
+    
   # Next simulate disease D
 #  E <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * h2 # add envirounmental noise 
 #  D = X + G_X + E 
@@ -296,7 +316,6 @@ pareto_P2 <- function(n, k)
 {
   if( k == 1)
     return(1/n)
-  
   p <- 0
   for(i in c(1:n))
     p <- p + pareto_P2(i, k-1)
@@ -304,11 +323,40 @@ pareto_P2 <- function(n, k)
 }
 
 
-# Asymptotic approximation
-pareto_P_approx <- function(n, k)
+# Compute recursivelt for all k and n to save time 
+pareto_P_mat <- function(max.n, max.k)
 {
-  return (log(n)^(k-1) / (n*factorial(k-1)))
+  P.mat <- matrix(0, nrow=max.n, ncol=max.k)
+  P.mat[,1] <- 1 / (1:max.n)  # k=1
+  P.mat[1,] <- 1 # n=1
+#  for(n in 1:max.n)  # fill for k=1
+#    P.mat[n,1] = 1/n
+  for(k in 2:max.k)
+    for(n in 2:max.n)
+      P.mat[n,k] <- ((n-1)*P.mat[n-1,k] + P.mat[n,k-1]) / n
+  return(P.mat)
 }
+
+
+# Asymptotic approximation
+pareto_P_approx <- function(n, k, order=2)
+{
+  if(order==1)
+    return (log(n)^(k-1) / (n*factorial(k-1)))
+  r <- 0
+  for(i in 1:k)
+    r <- r  + (log(n)^(i-1) * (-digamma(1))^(k-i) / (n*factorial(i-1)))
+  return(r)
+}
+
+# Asymptotic approximation - take 2nd order 
+#pareto_P_approx2 <- function(n, k)
+#{
+#  r <- 0
+#  for(i in 1:k)
+#    r <- r  + (log(n)^(i-1) * (-digamma(1))^(k-i) / (n*factorial(i-1)))
+#  return(r)
+#}
 
 
 # Compute pareto optimal probability under indepndence with simmmulations 
@@ -316,34 +364,63 @@ pareto_P_sim <- function(n, k, iters=1000)
 {
   n.pareto <- 0
   for(i in 1:iters)
-  {
     n.pareto <- n.pareto + length(get_pareto_optimal_vecs(matrix(runif(n*k), nrow=n, ncol=k))$pareto.inds) # Simulate vectors 
-  }
   return(n.pareto / (iters*n))
 }
   
-
+# Compute for block vectors (not i.i.d.)
+# here: n = C^M
+pareto_P_block <- function(C, M, k, iters=1000)
+{
+  print("start pareto P block")
+  n <- C^M
+  n.pareto <- 0
+  Sigma.T <- eye(k) # No correlations between siblings 
+  Sigma.K <- 0.5*diag(C) + matrix(0.5, nrow=C, ncol=C)   # kinship-correlations matrix 
+  sigma.blocks <- ones(M, 1)
+  loss.params <- c()
+  loss.params$theta <- ones(k, 1)
+  for(i in 1:iters)
+  {
+    print("Sim X")
+    X = simulate_PS_chrom_disease_risk(M, C, k, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+    print("Solve B&B")
+    sol.bb <- optimize_C_branch_and_bound(X, "quant", loss.params) # run B&B. Loss at the end doesn't matter. 
+    n.pareto <- n.pareto + length(sol.bb$loss.vec)
+  }
+  return(n.pareto / (iters*n))
+}
 # Compare different methods for calculating p_k(n)
-compare_pareto_P <- function(n.vec, k)
+compare_pareto_P <- function(n.vec, k, C=2, iters = 1000)
 {
   num.n <- length(n.vec)
   p.k <- rep(0, num.n)
-  p.k.asymptotic <- rep(0, num.n)
+  p.k.asymptotic <- rep(0, num.n, 1)
+  p.k.asymptotic2 <- rep(0, num.n, 2)
   p.k.sim <- rep(0, num.n)
+  p.k <- pareto_P_mat(max(n.vec), k)[n.vec, k]
+  p.k.blocks <- rep(0, num.n)
   for(i in 1:num.n)
   {
     n <- n.vec[i]
-    p.k[i] <- pareto_P2(n, k)
-    p.k.asymptotic[i] <- pareto_P_approx(n, k)
-    p.k.sim[i] <- pareto_P_sim(n, k)
+#    p.k[i] <- pareto_P2(n, k)
+    p.k.asymptotic[i] <- pareto_P_approx(n, k, 1)
+    p.k.asymptotic2[i] <- pareto_P_approx(n, k, 2)
+    if(iters > 0)
+    {
+#      p.k.sim[i] <- pareto_P_sim(n, k, iters)
+      M <- round(log(n)/log(C))
+      print(paste0("M=", M, " C=", C))
+      p.k.blocks[i] <- pareto_P_block(C, M, k, iters)
+    }
     # add also simulation  
   }
-  plot(n.vec, p.k*n.vec, xlab="n", ylab="p_k(n) n")  # exact 
-  points(n.vec, p.k.asymptotic*n.vec, col="green")  # asymptotic 
-  points(n.vec, p.k.sim*n.vec, col="red")  # simulation 
-  legend(0.75 * max(n.vec), 5,  c("exact", "approx", "sim"), col=c("black", "green", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+#  plot(n.vec, p.k*n.vec, xlab="n", ylab="p_k(n) n")  # exact 
+#  points(n.vec, p.k.asymptotic*n.vec, col="green")  # asymptotic 
+#  points(n.vec, p.k.sim*n.vec, col="red")  # simulation 
+#  legend(0.75 * max(n.vec), 5,  c("exact", "approx", "sim"), col=c("black", "green", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
   
-  return( list(p.k=p.k, p.k.sim=p.k.sim, p.k.asymptotic=p.k.asymptotic) )
+  return( list(p.k=p.k, p.k.sim=p.k.sim, p.k.blocks=p.k.blocks, p.k.asymptotic=p.k.asymptotic, p.k.asymptotic2=p.k.asymptotic2) )
   
 }
   
@@ -363,7 +440,11 @@ is_pareto_optimal <- function(x, X.mat)
   epsilon = 0.0000000000000000000000001
   if(isempty(X.mat))
     return(TRUE)
-  return( min(rowMaxs(t(replicate(dim(X.mat)[1], x))+epsilon - X.mat, value=TRUE)) >= 0 )
+  if(is.null(dim(X.mat)))
+    n.row <- 1
+  else
+    n.row <- dim(X.mat)[1]
+  return( min(rowMaxs(t(replicate(n.row, x))+epsilon - X.mat, value=TRUE)) >= 0 )
 }
 
 # Extract only pareto-optimal vectors in a matrix
@@ -387,7 +468,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 
   # Need to save also c-vec for each branch
     
-  print("Start B&B")
+#  print("Start B&B")
   cur.X <- X[1,,]
 #  cur.c <- 1:C
   par.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors . Needs fixing 
@@ -399,26 +480,25 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 
   L.vec <- rep(0, M)
   L.vec[1] = L
-  print(paste("L=", L, " start loop"))
+#  print(paste("L=", L, " start loop"))
   for( i in c(2:M))
   {  
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
-    print(paste0("Start B&B i=", i))
     new.X <- c()
     new.c <- c()
     for(j in c(1:L))  # loop over all vectors in the current stack      
       for  (c in c(1:C))  # loop over possible vectors to add 
       {
-        if(L == 1)
+        if(is.null(dim(cur.X)))
           v = cur.X+X[i,c,]
         else
           v = cur.X[j,]+X[i,c,]
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
-          if(L == 1)
+          if(is.null(dim(cur.c)))
             new.c <- rbind(new.c, c(cur.c[j], c) )
           else
             new.c <- rbind(new.c, c(cur.c[j,], c) )
@@ -426,9 +506,9 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
       }
     cur.X <- new.X
     cur.c <- new.c
-    L <- dim(new.X)[1]  
-    L.vec[i] = L
-    print(paste("Stack Size:", L))
+    L.vec[i] = dim(new.X)[1]  
+    if(i == M)
+      print(paste0("B&B C=", C, " i=", i, " out of ", M, " Stack Size:", dim(new.X)[1]))
   }
     
   # Finally find the cost-minimizer out ofthe Pareto-optimal vectors
@@ -494,48 +574,5 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
               Big.A=Big.A, b=b))
 }
-
-
-# From Shai: 
-
-risk_lowest = function(r2,K,n)
-{
-  r = sqrt(r2)
-  zk = qnorm(K) # , lower.tail=F)
-  integrand_lowest = function(t)
-  {
-    arg = (zk-t*sqrt(1-r2/2)) / (r/sqrt(2))
-    y = dnorm(t)*pnorm(arg)^n # , lower.tail=F
-    return(y)
-  }
-  risk = integrate(integrand_lowest,-Inf,Inf)$value
-#  reduction = (K-risk)/K
-  return(risk)
-}
-
-
-risk_lowest_conditional = function(r2,K,n,qf,qm) # ,relative=T)
-{
-  r = sqrt(r2)
-  zk = qnorm(K)
-  zqf = qnorm(qf)
-  zqm = qnorm(qm)
-  c = (zqf+zqm)/2 * r
-  baseline = pnorm((zk-c)/sqrt(1-r^2/2)) # without selection
-  integrand_lowest_cond = function(t)
-  {
-    arg = (zk-c-t*sqrt(1-r^2)) / (r/sqrt(2))
-    y = dnorm(t)*pnorm(arg)^n
-    return(y)
-  }
-  risk = integrate(integrand_lowest_cond,-Inf,Inf)$value
-#  if (relative) {
-#    reduction = (baseline-risk)/baseline
-#  } else {
-#    reduction = baseline-risk
-#  }
-  return(list(baseline=baseline, risk=risk))
-}
-
 
 

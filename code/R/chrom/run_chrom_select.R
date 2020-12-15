@@ -2,6 +2,7 @@
 library(mvtnorm)
 library(rWishart)
 library(matrixcalc)
+library(matrixNormal)
 library(Rfast)
 setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
 source("chrom_select.R")
@@ -9,18 +10,30 @@ source("chrom_select.R")
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 2 # number of chromosomal copies
 T <- 5 # number of traits
-M <- 22 # number of blocks 
+M <- 3 # number of blocks 
 
 df <- 5 # For wishart distirbution
-k <- 5
-max_n <- 20
-n_vec <- c(1:max_n)
-par <- compare_pareto_P(n_vec, k)
+k <- 4
+max_n <- 50
+n.vec <- seq(5, max_n, 5)
 
-plot(n.vec, par$p.k*n.vec, xlab="n", ylab="p_k(n) n")  # exact 
-points(n.vec, par$p.l.asymptotic*n.vec, col="green")  # asymptotic 
-points(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
-legend(0.75 * max(n.vec), 5,   lwd=c(2,2,2), c("exact", "approx", "sim"), col=c("black", "green", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+n.vec <- C^(2:12)
+iters <- 50
+par <- compare_pareto_P(n.vec, k, C, iters)
+
+max.p.k.n <- max(max(par$p.k*n.vec), max(par$p.k.blocks*n.vec), max(par$p.k.asymptotic2*n.vec)) * 1.01
+
+plot(n.vec, par$p.k*n.vec, type="l", xlab="n", ylab="p_k(n) n", ylim = c(0, max.p.k.n))  # exact 
+lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic 
+lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
+lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
+lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
+
+legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
+       c("exact", "approx", "approx2", "sim", "block"), col=c("black", "green", "blue", "red", "cyan"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+
+plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
+print(max(par$p.k.asymptotic / par$p.k))
 
 
 p_k <- rep(0, max_n)
@@ -41,7 +54,7 @@ is.positive.definite(Sigma.K)
 Sigma <- 0.5*diag(T) + matrix(0.5, nrow=T, ncol=T)   # trait-correlations matrix 
 Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
 
-X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, sigma.blocks, prev)
+X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks, prev)
 
 # Example of choosing the index for each block
 c.vec = sample(C, M, replace=TRUE)
@@ -123,5 +136,25 @@ P <- get_pareto_optimal_vecs(X.mat)
 
 plot(X.mat[,1], X.mat[,2])
 points(P$pareto.X[,1], P$pareto.X[,2], pch=20, col="red", cex=2)
+
+
+# Try worst case vectors 
+M <- 2
+C <- 2 # number of vectors
+T <- 2 # dimension
+
+W = array(0, dim=c(M, C, T))
+W[1,1,] <- c(0,1)
+W[1,2,] <- c(1,0)
+W[2,1,] <- c(0.5, sqrt(0.5))
+W[2,2,] <- c(sqrt(0.5), 0.5)
+
+
+
+sol.W <- optimize_C_branch_and_bound(W, "quant", loss.params)
+
+plot(sol.W$pareto.opt.X[,1], sol.W$pareto.opt.X[,2])
+
+
 
 
