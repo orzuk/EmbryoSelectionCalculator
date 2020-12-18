@@ -5,7 +5,8 @@ library(matrixcalc)
 library(matrixNormal)
 library(Rfast)
 setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
-source("chrom_select.R")
+source("chrom_select_funcs.R")
+source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 2 # number of chromosomal copies
@@ -17,7 +18,7 @@ k <- 4
 max_n <- 50
 n.vec <- seq(5, max_n, 5)
 
-n.vec <- C^(2:12)
+n.vec <- C^(2:8)
 iters <- 50
 par <- compare_pareto_P(n.vec, k, C, iters)
 
@@ -36,13 +37,13 @@ plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
 print(max(par$p.k.asymptotic / par$p.k))
 
 
-p_k <- rep(0, max_n)
-for(n in n_vec)
-{
-  p_k[n] <- pareto_P2(n, k)
-  # add also simulation  
-}
-plot(n_vec, p_k*n_vec, xlab="n", ylab="p_k(n) n")  # analytic 
+#p_k <- rep(0, max_n)
+#for(n in n.vec)
+#{
+#  p_k[n] <- pareto_P2(n, k)
+#  # add also simulation  
+#}
+#plot(n.vec, p_k*n.vec, xlab="n", ylab="p_k(n) n")  # analytic 
 
 h.ps <- 0.3  # variane explained by the polygenic score 
 prev <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
@@ -85,6 +86,8 @@ V.pareto
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 
+sol.quant <- optimize_C_quant(X, "quant", loss.params)
+
 loss.C <- "stabilizing"
 bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
@@ -104,7 +107,6 @@ A <- bal.exact$Big.A[1:(M*C),1:(M*C)]
 LOSS2 <- 0.5 * t(C.mat.to.vec) %*% A %*% (C.mat.to.vec)
 print(LOSS1)
 print(LOSS2)
-
 
 
 average.disease.loss = sum(loss.params$theta * loss.params$K)
@@ -138,18 +140,28 @@ plot(X.mat[,1], X.mat[,2])
 points(P$pareto.X[,1], P$pareto.X[,2], pch=20, col="red", cex=2)
 
 
-# Try worst case vectors 
-M <- 2
+# Try worst case vectors. The goal is to find a set of vectors such that all C^K vectors will be pareto optimal 
+M <- 6
 C <- 2 # number of vectors
-T <- 2 # dimension
+T <- 4 # dimension
+
+u <- matrix(runif(M*C), nrow=M, ncol=C)
+
+
 
 W = array(0, dim=c(M, C, T))
+for(i in 1:M)
+  for(j in 1:C)
+  {
+    W[i,j,] = u[i,j]
+    W[i,j,T] = (1-T)*u[i,j]
+  }
+
+
 W[1,1,] <- c(0,1)
 W[1,2,] <- c(1,0)
 W[2,1,] <- c(0.5, sqrt(0.5))
 W[2,2,] <- c(sqrt(0.5), 0.5)
-
-
 
 sol.W <- optimize_C_branch_and_bound(W, "quant", loss.params)
 
