@@ -102,7 +102,7 @@ pareto_P_block <- function(C, M, k, iters=1000)
 
 
 
-# Choose in a greedy manner the best X  
+# Choose in a greedy manner the best X. Mininize loss   
 optimize_C_quant <- function(X, loss.C, loss.params)
 {
   M <- dim(X)[1]
@@ -112,7 +112,7 @@ optimize_C_quant <- function(X, loss.C, loss.params)
   for( i in c(1:M))
   {
     v <- sum(X[i,,] * loss.params$theta)  
-    c.vec[i] <- which.max(rowSums(X[i,,] * loss.params$theta)  )
+    c.vec[i] <- which.min(rowSums(X[i,,] * loss.params$theta)  )
     opt.x <- opt.x + X[i,c.vec[i],]
   }
   return(list(opt.X = opt.x, opt.c = c.vec, opt.loss = sum(opt.x*loss.params$theta)))
@@ -238,28 +238,40 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 
 
 # A wrapper function for all optimizations
+optimize_C <- function(X, loss.C, loss.params, alg.str)
+{
+  M <- dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
 
+  if(loss.C == "quant") # easy optimization for quantitative traits 
+    return(optimize_C_quant(X, loss.C, loss.params))
+  if(alg.str == "branch_and_bound")
+    return(optimize_C_branch_and_bound(X, loss.C, loss.params))
+  if(loss.C == "stabilizing")
+    return(optimize_C_stabilizing_exact(X, loss.C, loss.params))
+  if(alg.str == "relax")  # here we need to set init
+    return(optimize_C_relax(X, loss.params$C.init, loss.C, loss.params))  
+
+}  
+  
 
 
 # Compute average gain using simulations 
 compute_gain_sim <- function(params, loss.C, loss.params)
 {
+  gain.vec <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-    print("Solve B&B")
+    print("Solve:")
+    sol <- optimize_C(X, loss.C, loss.params, alg.str)
     
-    if(loss.C == "quant")
-      sol <- optimize_C_branch_and_bound(X, "quant", loss.params) # run B&B. Loss at the end doesn't matter. 
-    if(loss.C == "disease")
-      sol <- optimize_C_branch_and_bound(X, "disease", loss.params) # run B&B. Loss at the end doesn't matter. 
-    if(loss.C == "stabilizing")
-      sol <- optimize_C_stabilizing_exact(X, "stabilizing", loss.params) # run B&B. Loss at the end doesn't matter. 
-    
-    
-    
+    # Next compute average gain vs. random: 
+    gain.vec[t] <- sol$opt.los
+
   }
-  
+  gain <- mean(sol$opt.los) # compute optimal loss 
   return(gain)
 }
 

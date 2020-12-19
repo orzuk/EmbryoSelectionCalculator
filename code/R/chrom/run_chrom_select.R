@@ -13,7 +13,7 @@ C <- 2 # number of chromosomal copies
 T <- 5 # number of traits
 M <- 3 # number of blocks 
 
-df <- 5 # For wishart distirbution
+df <- 5 # For wishart distribution
 k <- 4
 max_n <- 50
 n.vec <- seq(5, max_n, 5)
@@ -29,7 +29,6 @@ lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic
 lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
 lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
 lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
-
 legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
        c("exact", "approx", "approx2", "sim", "block"), col=c("black", "green", "blue", "red", "cyan"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 
@@ -48,7 +47,6 @@ print(max(par$p.k.asymptotic / par$p.k))
 h.ps <- 0.3  # variane explained by the polygenic score 
 prev <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
 theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
-
 sigma.blocks = chr.lengths * h.ps
 Sigma.K <- 0.5*diag(C) + matrix(0.5, nrow=C, ncol=C)   # kinship-correlations matrix 
 is.positive.definite(Sigma.K)
@@ -85,7 +83,6 @@ V.pareto = get_pareto_optimal_vecs(V)
 V.pareto
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-
 sol.quant <- optimize_C_quant(X, "quant", loss.params)
 
 loss.C <- "stabilizing"
@@ -168,5 +165,4 @@ sol.W <- optimize_C_branch_and_bound(W, "quant", loss.params)
 plot(sol.W$pareto.opt.X[,1], sol.W$pareto.opt.X[,2])
 
 
-
-
+  

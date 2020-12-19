@@ -349,26 +349,4 @@ get_pareto_optimal_vecs <- function(X.mat)
 
 
 
-# Compute average gain using simulations 
-compute_gain_sim <- function(params, loss.C, loss.params)
-{
-  for (t in 1:params$iters)
-  {
-    X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-    print("Solve B&B")
-    
-    if(loss.C == "quant")
-      sol <- optimize_C_branch_and_bound(X, "quant", loss.params) # run B&B. Loss at the end doesn't matter. 
-    if(loss.C == "disease")
-      sol <- optimize_C_branch_and_bound(X, "disease", loss.params) # run B&B. Loss at the end doesn't matter. 
-    if(loss.C == "stabilizing")
-      sol <- optimize_C_stabilizing_exact(X, "stabilizing", loss.params) # run B&B. Loss at the end doesn't matter. 
-    
-          
-    
-  }
-  
-  return(gain)
-}
-  
 
