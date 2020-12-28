@@ -71,11 +71,23 @@ compute_X_c_vec <- function(X, c.vec)
 # Reduce a tensor of size M*C*T and a matrix of size M*C to a risk vector of length T
 compute_X_C_mat <- function(X, C.mat)
 {
-  T <- dim(X)[3]
+  # What if C.mat is of dimension 1?
   M = dim(X)[1]
+  C = dim(X)[2]
+  T <- dim(X)[3]
   X.c <- rep(0, T)
-  for( i in 1:M)
-    X.c = X.c + colSums(sweep(X[i,,], MARGIN=1, C.mat[i,], `*`))  
+  if(is.null(dim(C.mat)[1]) || (C==1))  # C=1 , C.mat is a vector 
+  {
+    for(i in 1:M)
+    {
+      print(paste0("i=", i))
+      print(X[i,,] * C.mat[i])
+      X.c = X.c + X[i,,] * C.mat[i]  # colSums(sweep(X[i,,], MARGIN=1, C.mat[i], `*`))  
+    }
+  }
+  else
+    for(i in 1:M)
+      X.c = X.c + colSums(sweep(X[i,,], MARGIN=1, C.mat[i,], `*`))  
   
   return(X.c)
 }
@@ -105,15 +117,19 @@ loss_PS <- function(X.c, loss.type, loss.params)
 
 
 
-
-
 # The gradient for the loss.
 # Return a matrix of size: M*C
+# Can also add a regularizer 
 grad_loss_PS <- function(X, C, loss.type, loss.params)
 {
+  M = dim(X)[1]
+
+  if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
+    loss.params$eta <- 0 
+  
   if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
-    return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2)) )
+    return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2))  - loss.params$eta)
   }
   
   if(loss.type == 'disease')
@@ -121,7 +137,7 @@ grad_loss_PS <- function(X, C, loss.type, loss.params)
     z.K <- qnorm(loss.params$K)
     Sigma.eps.inv <- 1/(1-sqrt(loss.params$h.ps))
     X.c <- compute_X_C_mat(X, C)
-    return( tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) ) 
+    return( tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) - loss.params$eta) # added regularizer  
   }
 }  
 
@@ -164,16 +180,23 @@ hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
 
 
 # Mutiply a tensor by matrix 
-# X - a 3rd-prder tensor
-# M - a matrix 
+# X - a 3rd-prder tensor of dims: M*C*T
+# A - a matrix. Dimension depends on axis to multiply by: 
+# ax=3: A is a matrix of size M*C
+# ax=2: A is a matrix of size M*T
+# ax=1: A is a matrix of size C*T
 tensor_matrix_prod <- function(X, A, ax=3)
 {
   if(ax == 2)
   {
-    
-    R = sweep(X[,1,], MARGIN=1, A[,1], `*`)
-    for(i in 2:dim(X)[ax])
-      R <- R + sweep(X[,i,], MARGIN=1, A[,i], `*`) # X[,i,] * A[,i]
+    if(dim(X)[ax] == 1)
+      R = sweep(X[,1,], MARGIN=1, A, `*`) # only one value
+    else
+    {
+      R = sweep(X[,1,], MARGIN=1, A[,1], `*`)
+      for(i in 2:dim(X)[ax])
+        R <- R + sweep(X[,i,], MARGIN=1, A[,i], `*`) # X[,i,] * A[,i]
+    }
   }
   if(ax == 3)
   {
@@ -340,6 +363,8 @@ is_pareto_optimal <- function(x, X.mat)
 get_pareto_optimal_vecs <- function(X.mat)
 {
   n = dim(X.mat)[1]
+  if(is.null(n)) # here X.mat is a vector - only one vector 
+    return(list(pareto.X=X.mat, pareto.inds=1))
   is.pareto = rep(0,n)
   for(i in 1:n)
     is.pareto[i] = is_pareto_optimal(X.mat[i,], X.mat) #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0

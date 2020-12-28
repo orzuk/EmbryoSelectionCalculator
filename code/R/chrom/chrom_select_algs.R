@@ -12,6 +12,7 @@ source('chrom_select_funcs.R')
 # Run the optimization to find the optimal C:
 optimize_C_relax <- function(X, C.init, loss.C, loss.params)
 {
+  print("Start optimize relax")
   M = dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
@@ -38,7 +39,8 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     loss.params$epsilon <- 0.000001 
   if(!("max.iters" %in% names(loss.params)))  
     loss.params$max.iters <- 10000 
-  
+
+      
   loss.vec <- rep(0, loss.params$max.iters)
   loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.C, loss.params)
   delta.loss <- 999999
@@ -53,7 +55,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     if(t%%50 == 0)
       print(paste("while t=", t))
     C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params) # move in minus gradient direction (minimization) 
-    C.cur <- project_stochastic_matrix(C.next)
+    C.cur <- project_stochastic_matrix(C.next) # Project onto the simplex 
     if(loss.params$decay == "exp") # exponential decay
       mu.t <- mu.t * loss.params$beta  # update step size 
     if(loss.params$decay == "inverse") # 1/t decay
@@ -61,6 +63,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     
     t <- t+1
     mu.t.vec[t] <- mu.t
+
     loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.C, loss.params)
     delta.loss <- loss.vec[t] - loss.vec[t-1]    
     # otherwise constant learning rate 
@@ -123,6 +126,7 @@ optimize_C_quant <- function(X, loss.C, loss.params)
 # A branch and bound algorithm 
 optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 {
+ print("Start optimize B&B") 
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
@@ -132,7 +136,17 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   #  print("Start B&B")
   cur.X <- X[1,,]
   #  cur.c <- 1:C
+  
+  print("Get pareto") 
+  print("cur x:")
+  print(cur.X)
+  print("Dim x:")
+  print(dim(X))
+  
   par.X <- get_pareto_optimal_vecs(cur.X) # Save only Pareto-optimal vectors . Needs fixing 
+  print("par x:")
+  print(par.X)
+  
   cur.c <- t(t(par.X$pareto.inds))
   cur.X <- par.X$pareto.X
   L <- dim(cur.X)[1]
@@ -141,9 +155,10 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   
   L.vec <- rep(0, M)
   L.vec[1] = L
-  #  print(paste("L=", L, " start loop"))
+  print(paste("L=", L, " start loop"))
   for( i in c(2:M))
   {  
+    print(paste0("i=", i))
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
@@ -205,12 +220,16 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 ###############################################################
 optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 {
+  if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
+    loss.params$eta <- 0 
+  
+  print("Start optimize stabilizing")
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
   #  A <- grad_loss_PS(X, C, "stabilizing", loss.params)
   
-  A <- matrix(0, nrow=M*C, ncol=M*C)
+  A <- -loss.params$eta * eye(M*C) # new: add regularization # matrix(0, nrow=M*C, ncol=M*C)
   for(k in c(1:T))
     #    A <- A + 2 * loss.params$theta[k] *  as.vector((X[,,k])) %*% t(as.vector((X[,,k])))
     A <- A + 2 * loss.params$theta[k] *  as.vector(t(X[,,k])) %*% t(as.vector(t(X[,,k])))
@@ -221,17 +240,20 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
   Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
   
   #  return(list(  Big.A=Big.A, b=b)) # temp debug
-  
+
   if(T+2*M >= (C+1)*M)
     v <- solve(Big.A, b) # Solve system
   else  
     v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse
   C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
+
+  c.p.v <- compute_X_C_mat(X, C.mat)
   loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
   c.vec <- max.col(C.mat) # Convert to matrix and take max of each row 
+
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec)
-  
+
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
               Big.A=Big.A, b=b))
 }
@@ -240,6 +262,8 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 # A wrapper function for all optimizations
 optimize_C <- function(X, loss.C, loss.params, alg.str)
 {
+  print("Start optimize")
+  
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
@@ -248,11 +272,11 @@ optimize_C <- function(X, loss.C, loss.params, alg.str)
     return(optimize_C_quant(X, loss.C, loss.params))
   if(alg.str == "branch_and_bound")
     return(optimize_C_branch_and_bound(X, loss.C, loss.params))
-  if(loss.C == "stabilizing")
-    return(optimize_C_stabilizing_exact(X, loss.C, loss.params))
   if(alg.str == "relax")  # here we need to set init
     return(optimize_C_relax(X, loss.params$C.init, loss.C, loss.params))  
-
+  if(loss.C == "stabilizing")
+    return(optimize_C_stabilizing_exact(X, loss.C, loss.params))
+  
 }  
   
 
@@ -265,13 +289,12 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   {
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
     print("Solve:")
-    sol <- optimize_C(X, loss.C, loss.params, alg.str)
+    sol <- optimize_C(X, loss.C, loss.params, params$alg.str)
     
     # Next compute average gain vs. random: 
     gain.vec[t] <- sol$opt.los
-
   }
-  gain <- mean(sol$opt.los) # compute optimal loss 
+  gain <- mean(sol$opt.los) # compute optimal loss. Should subtract mean loss  
   return(gain)
 }
 
