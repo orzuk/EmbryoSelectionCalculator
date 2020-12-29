@@ -9,9 +9,9 @@ source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
-C <- 2 # number of chromosomal copies
-T <- 5 # number of traits
-M <- 3 # number of blocks 
+C <- 3 # number of chromosomal copies
+T <- 20 # number of traits
+M <- 5  # number of blocks 
 
 df <- 5 # For wishart distribution
 k <- 4
@@ -45,15 +45,16 @@ print(max(par$p.k.asymptotic / par$p.k))
 #plot(n.vec, p_k*n.vec, xlab="n", ylab="p_k(n) n")  # analytic 
 
 h.ps <- 0.3  # variane explained by the polygenic score 
-prev <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
-theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
+prev <- logspace(-4, -0.5, n=T) # c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease . Should match T 
+theta <- rep(1, T) # c(1, 1, 1, 1, 1)  # importance of each disease . Should match T 
 sigma.blocks = chr.lengths * h.ps
 Sigma.K <- 0.5*diag(C) + matrix(0.5, nrow=C, ncol=C)   # kinship-correlations matrix 
 is.positive.definite(Sigma.K)
 Sigma <- 0.5*diag(T) + matrix(0.5, nrow=T, ncol=T)   # trait-correlations matrix 
+df = T
 Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
 
-X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks, prev)
+X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
 
 # Example of choosing the index for each block
 c.vec = sample(C, M, replace=TRUE)
@@ -68,6 +69,7 @@ loss.params <- c()
 loss.params$K <- prev
 loss.params$h.ps <- rep(h.ps, T)
 loss.params$theta <- theta
+loss.params$eta <- 0 # negative L2 regularization 
 
 loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
 g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
@@ -88,7 +90,22 @@ sol.quant <- optimize_C_quant(X, "quant", loss.params)
 loss.C <- "stabilizing"
 bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
-bal.exact <- optimize_C_stabilizing_exact(X, loss.C, loss.params)
+
+# Try many times: 
+diff.vec <- rep(0, 100)
+for(i in 1:100)
+{
+  X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
+  bal.exact <- optimize_C_stabilizing_exact(X, loss.C, loss.params)
+  bal.exact2 <- optimize_C_stabilizing_exact(X[,1:2,], loss.C, loss.params) # take subset of C. Loss should be higher
+  diff.vec[i] <- bal.exact$loss.mat - bal.exact2$loss.mat
+#  bal.exact$loss.mat
+#  bal.exact2$loss.mat
+  if(bal.exact2$loss.mat < bal.exact$loss.mat)
+    print("Error! loss got smaller!")
+}
+
+
 bal.relax2 <- optimize_C_relax(X, bal.exact$C.mat, loss.C, loss.params)
 plot(bal.relax2$loss.vec)
 

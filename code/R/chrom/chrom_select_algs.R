@@ -237,11 +237,21 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
   for(i in c(1:M))
     E[i,((i-1)*C+1):(i*C)] <- 1
   b <- c(rep(0, M*C), rep(1, M)) # free vector for linear system   
+  
   Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
   
   #  return(list(  Big.A=Big.A, b=b)) # temp debug
-
-  if(T+2*M >= (C+1)*M)
+  print("A:")
+  print(A)
+  print("Big.A:")
+  print(Big.A)
+  print("Dim(Big.A):")
+  print(dim(Big.A))
+  print("Rank(Big.A):")
+  print(qr(Big.A)$rank)
+  
+  
+  if(T+2*M >= (C+1)*M)  # unique solution 
     v <- solve(Big.A, b) # Solve system
   else  
     v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse

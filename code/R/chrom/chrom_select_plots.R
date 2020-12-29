@@ -29,7 +29,7 @@ loss.params <- c()
 loss.params$K <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease 
 loss.params$h.ps <- rep(h.ps, params$T)
 loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
-loss.params$eta <- 1 # negative L2 regularization 
+loss.params$eta <- 0 # negative L2 regularization 
 
 
 gain.vec <- rep(0, length(params$C.vec))
