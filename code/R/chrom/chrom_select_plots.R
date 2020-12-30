@@ -34,7 +34,7 @@ loss.params$eta <- 0 # negative L2 regularization
 
 gain.vec <- rep(0, length(params$C.vec))
 run.plots <- 1
-params$alg.str <- "relax" # "exact" # "branch_and_bound"
+params$alg.str <- "exact" # "exact" # "branch_and_bound"
 if(run.plots)
   for(i in 1:length(params$c.vec))
   {

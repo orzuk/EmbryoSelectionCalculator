@@ -295,6 +295,7 @@ optimize_C <- function(X, loss.C, loss.params, alg.str)
 compute_gain_sim <- function(params, loss.C, loss.params)
 {
   gain.vec <- rep(0, params$iters)
+  gain.mat <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
@@ -303,9 +304,11 @@ compute_gain_sim <- function(params, loss.C, loss.params)
     
     # Next compute average gain vs. random: 
     gain.vec[t] <- sol$opt.los
+    gain.mat[t] <- sol$loss.mat
   }
-  gain <- mean(sol$opt.los) # compute optimal loss. Should subtract mean loss  
-  return(gain)
+  gain <- mean(gain.vec) # compute optimal loss. Should subtract mean loss  
+  gain.mat <- mean(gain.mat)
+  return(list(gain=gain, gain.mat=gain.mat))
 }
 
 
