@@ -33,6 +33,7 @@ loss.params$eta <- 0 # negative L2 regularization
 
 
 gain.vec <- rep(0, length(params$C.vec))
+gain.mat <- rep(0, length(params$C.vec))
 run.plots <- 1
 params$alg.str <- "exact" # "exact" # "branch_and_bound"
 if(run.plots)
@@ -41,10 +42,12 @@ if(run.plots)
     params$C <- params$c.vec[i]
     Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
     is.positive.definite(Sigma.K)
-    gain.vec[i] <- compute_gain_sim(params, loss.C, loss.params)
+    L  <- compute_gain_sim(params, loss.C, loss.params)
+    gain.vec[i] <- L$gain
+    gain.mat[i] <- L$gain.mat
   }
     
 # Plot: 
 plot(params$c.vec, gain.vec, xlab="C", ylab="Gain")
-
+  plot(params$c.vec, gain.mat, xlab="C", ylab="Gain Relaxed")
     

@@ -373,5 +373,46 @@ get_pareto_optimal_vecs <- function(X.mat)
 }
 
 
+# Compute a vector of coordinate-wise lipschitz constants
+compute_lipschitz_const <- function(loss.type, loss.params)
+{
+  T <- length(loss.params$theta)
+  lip <- rep(0, T) # vector of coordinate wise lipschitz constants
+  #  X.c <- compute_X_C_mat(X, C)
+  if(loss.type == "quant")
+    lip <- loss.params$theta
+  
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))
+  {
+    lip <- loss.params$theta
+  }
+  
+  if(loss.type == 'disease')  # weighted disease probability 
+  {
+    lip <- loss.params$theta/loss.params$sqrt(2*pi)  # constant doesn't depend on prevalence 
+  }
+  return (lip)
+  
+}
 
+# compute the maximal contribution of each vector to the loss
+get_tensor_lipshitz_params <- function(X, loss.type, loss.params)  
+{
+  T <- dim(X)[1]
+  M <- dim(X)[2]
+  C <- dim(X)[3]
+  lip <- compute_lipschitz_const(loss.type, loss.params)
+    
+  X.loss.mat <- matrix(rep(0, M*C), nrow=M, ncol=C)
+  lip.pos.mat <- X.loss.mat
+  lip.neg.mat <- X.loss.mat
+  for(i in 1:M)
+    for(j in 1:C)
+    {
+      X.loss.mat[i,j] <- loss_PS(X[i,j,], loss.type, loss.params)
+      lip.pos.mat[i,j] <- p.max(X[i,j,], 0) * lip
+      lip.pos.mat[i,j] <- -p.min(X[i,j,], 0) * lip
+    }
+}
 
+ # Next utilize cosntants in algoruithm   
