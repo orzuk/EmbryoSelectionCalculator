@@ -80,8 +80,8 @@ compute_X_C_mat <- function(X, C.mat)
   {
     for(i in 1:M)
     {
-      print(paste0("i=", i))
-      print(X[i,,] * C.mat[i])
+#      print(paste0("i=", i))
+#      print(X[i,,] * C.mat[i])
       X.c = X.c + X[i,,] * C.mat[i]  # colSums(sweep(X[i,,], MARGIN=1, C.mat[i], `*`))  
     }
   }
@@ -411,8 +411,10 @@ get_tensor_lipshitz_params <- function(X, loss.type, loss.params)
     {
       X.loss.mat[i,j] <- loss_PS(X[i,j,], loss.type, loss.params)
       lip.pos.mat[i,j] <- p.max(X[i,j,], 0) * lip
-      lip.pos.mat[i,j] <- -p.min(X[i,j,], 0) * lip
+      lip.neg.mat[i,j] <- -p.min(X[i,j,], 0) * lip
     }
+  
+  return(list(X.loss.mat=X.loss.mat, lip.pos.mat=lip.pos.mat, lip.neg.mat=lip.neg.mat))
 }
 
  # Next utilize cosntants in algoruithm   

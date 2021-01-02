@@ -12,8 +12,8 @@ source("chrom_select_algs.R")
 
 # SEt all parameters
 params <- c()
-params$M <- 22
-params$c.vec <- 1:10
+params$M <- 6 # 22 
+params$c.vec <- 1:4
 params$T <- 5
 params$iters <- 10
 df <- 5 # For wishart distribution
@@ -35,7 +35,7 @@ loss.params$eta <- 0 # negative L2 regularization
 gain.vec <- rep(0, length(params$C.vec))
 gain.mat <- rep(0, length(params$C.vec))
 run.plots <- 1
-params$alg.str <- "exact" # "exact" # "branch_and_bound"
+params$alg.str <- "branch_and_bound_lipschitz" # "exact" # "branch_and_bound"
 if(run.plots)
   for(i in 1:length(params$c.vec))
   {
@@ -48,6 +48,6 @@ if(run.plots)
   }
     
 # Plot: 
-plot(params$c.vec, gain.vec, xlab="C", ylab="Gain")
-  plot(params$c.vec, gain.mat, xlab="C", ylab="Gain Relaxed")
+plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(0, max(gain.vec)))
+points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
     
