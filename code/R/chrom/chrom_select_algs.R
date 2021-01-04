@@ -186,18 +186,15 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 }
 
 
-
 # A branch and bound algorithm 
-optimize_C_branch_and_bound_lipschitz <- function(X, loss.C, loss.params)
+optimize_C_branch_and_bound_lipschitz <- function(X, loss.type, loss.params)
 {
   print("Start optimize B&B Lipschitz") 
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
-  
   lip <- get_tensor_lipshitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors 
   
   lip$max.pos <- rowMaxs(lip$lip.pos.mat)
   lip$max.neg <- rowMaxs(lip$lip.neg.mat)
-  
   # Need to save also c-vec for each branch
 
   par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
@@ -213,16 +210,37 @@ optimize_C_branch_and_bound_lipschitz <- function(X, loss.C, loss.params)
   L.vec <- rep(0, M)
   L.vec[1] = L
   print(paste("L=", L, " start loop"))
-  for( i in c(2:M))
+  for(i in c(2:M))
   {  
-    print(paste0("i=", i))
+#    print(paste0("i=", i))
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
+
+    # New: exclude vectors with high loss 
+    if(i < M)
+    {
+      cur.scores <- rep(0, L)
+      for(j in 1:L)
+        cur.scores[j] = loss_PS(cur.X[j,], loss.type, loss.params) # New part: here filter pareto-optimal vectors with too low values 
+      min.score <- min(cur.scores) # - sum(lip$max.pos[(i+1):M]) # Next, exclude     
+      # Next, exclude all solutions with too high scores: 
+      good.inds <- which(cur.scores <= min.score + sum(lip$max.pos[(i+1):M]) +  sum(lip$max.neg[(i+1):M]))
+      if(length(good.inds) < L)
+      {
+        print("Saved: Good inds:")
+        print(length(good.inds))
+        print(L)
+      }
+      cur.X <- cur.X[good.inds,] # take only good ones 
+      cur.c <- cur.c[good.inds,]
+    }  
+    
+    
     new.X <- c()
     new.c <- c()
-    for(j in c(1:L))  # loop over all vectors in the current stack      
-      for  (c in c(1:C))  # loop over possible vectors to add 
+    for(j in 1:L)  # loop over all vectors in the current stack      
+      for(c in 1:C)  # loop over possible vectors to add 
       {
         if(is.null(dim(cur.X)))
           v = cur.X+X[i,c,]
@@ -238,15 +256,6 @@ optimize_C_branch_and_bound_lipschitz <- function(X, loss.C, loss.params)
         }
       }
     L.vec[i] = dim(new.X)[1]  
-    if(k < M)
-    {
-      new.scores <- rep(0, L.vec[i])
-      for(j in 1:L.vec[i])
-      {
-        new.scores[j] = loss_PS(new.X[j,], loss.type, loss.params) # New part: here filter pareto-optimal vectors with too low values 
-      }  
-      min.score <- min(new.scores) - lip$max.pos[(k+1):M] # Next, exclude     
-    }  
     cur.X <- new.X
     cur.c <- new.c
     if(i == M)
@@ -258,12 +267,12 @@ optimize_C_branch_and_bound_lipschitz <- function(X, loss.C, loss.params)
   if(is.null(L)) # one dimensional array 
   {
     L = 1
-    loss.vec = loss_PS(cur.X, loss.C, loss.params)
+    loss.vec = loss_PS(cur.X, loss.type, loss.params)
   }  else
   {
     loss.vec <- rep(0, L)
     for(i in 1:L)
-      loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
+      loss.vec[i] <- loss_PS(cur.X[i,], loss.type, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
   

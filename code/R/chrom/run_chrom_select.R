@@ -10,10 +10,10 @@ source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 3 # number of chromosomal copies
-T <- 20 # number of traits
-M <- 5  # number of blocks 
+T <- 6 # number of traits
+M <- 15  # number of blocks 
 
-df <- 5 # For wishart distribution
+df <- T # For wishart distribution
 k <- 4
 max_n <- 50
 n.vec <- seq(5, max_n, 5)
@@ -34,7 +34,6 @@ legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2),
 
 plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
 print(max(par$p.k.asymptotic / par$p.k))
-
 
 #p_k <- rep(0, max_n)
 #for(n in n.vec)
@@ -85,6 +84,8 @@ V.pareto = get_pareto_optimal_vecs(V)
 V.pareto
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
+
 sol.quant <- optimize_C_quant(X, "quant", loss.params)
 
 loss.C <- "stabilizing"
@@ -180,6 +181,3 @@ W[2,2,] <- c(sqrt(0.5), 0.5)
 sol.W <- optimize_C_branch_and_bound(W, "quant", loss.params)
 
 plot(sol.W$pareto.opt.X[,1], sol.W$pareto.opt.X[,2])
-
-
-  
