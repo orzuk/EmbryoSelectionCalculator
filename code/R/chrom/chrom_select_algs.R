@@ -292,6 +292,45 @@ optimize_C_branch_and_bound_lipschitz <- function(X, loss.type, loss.params)
 
 
 
+# A branch and bound algorithm 
+optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.params)
+{
+  # Compute pareto optimal vectors for each half and then merge them 
+  M1 <- floor(M/2)
+  M2 <- M-M1
+  
+  X1 <- optimize_C_branch_and_bound_lipschitz(X[1:M1,,], loss.type, loss.params)
+  X2 <- optimize_C_branch_and_bound_lipschitz(X[(M1+1):M,,], loss.type, loss.params)
+  
+  lip1 <- get_tensor_lipshitz_params(X1$pareto.opt.x, loss.type, loss.params)
+  lip2 <- get_tensor_lipshitz_params(X2$pareto.opt.x, loss.type, loss.params)
+
+  L.lowerbound <- min(X1$opt.loss - min(lip2$lip.neg.mat), X2$opt.loss - min(lip1$lip.neg.mat))  
+  L.upperbound <- max(X1$opt.loss + max(lip2$lip.pos.mat), X2$opt.loss + max(lip1$lip.pos.mat))  
+  
+  # Next exclude all vectors exceeding the upperbound
+  good.inds1 <- X1$loss.vec <= L.upperbound
+  good.inds2 <- X2$loss.vec <= L.upperbound
+  
+  min.loss <- L.upperbound
+  for(i1 in good.inds1)
+    for(i2 in good.inds2)
+    {
+      cur.loss <- loss_PS(X1$pareto.opt.X[i1] + X2$pareto.opt.X[i1], loss.type, loss.params)
+      if(cur.loss < min.loss)
+      {
+        min.loss <- min(cur.loss, min.loss)      
+        opt.X <- X1$pareto.opt.X[i1] + X2$pareto.opt.X[i1]
+        opt.c <- c(X1$opt.c, X2$opt.x)
+      }
+    }
+
+  return(list(opt.X=opt.X, opt.c=opt.c))      
+            
+}
+  
+
+
 ###############################################################
 # A closed-form solution for the case of stabilizing selection 
 #
