@@ -85,6 +85,8 @@ V.pareto
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
+sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
+
 
 sol.quant <- optimize_C_quant(X, "quant", loss.params)
 
