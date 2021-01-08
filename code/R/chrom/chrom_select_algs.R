@@ -325,6 +325,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   print("good inds: ")
   print(paste0("1:", length(good.inds1), " of ", length(X1$loss.vec)))
   print(paste0("2:", length(good.inds2), " of ", length(X2$loss.vec)))
+  
+  print(paste0("Saved: ",  1-length(good.inds1)*length(good.inds2) / (length(X1$loss.vec)*length(X1$loss.vec))))
   for(i1 in good.inds1)
     for(i2 in good.inds2)
     {
