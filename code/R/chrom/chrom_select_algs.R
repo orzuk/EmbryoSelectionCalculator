@@ -326,7 +326,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     lip2$neg.mat[i] <- -pmin(X2$pareto.opt.X[i,], 0) %*% lip
   }
   
-
   L.lowerbound <- min(X1$opt.loss - max(lip2$pos.mat), X2$opt.loss - max(lip1$pos.mat))  
   L.upperbound <- max(X1$opt.loss + max(lip2$neg.mat), X2$opt.loss + max(lip1$neg.mat))  
   
@@ -359,8 +358,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     }
 
   print("Now return:")
-  return(list(opt.X=opt.X, opt.c=opt.c))      
-            
+  return(list(opt.X=opt.X, opt.c=opt.c, opt.loss = min.loss))      
 }
   
 
