@@ -328,10 +328,10 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   L.upperbound <- max(X1$opt.loss + max(lip2$neg.mat), X2$opt.loss + max(lip1$neg.mat))  
   
   # Next exclude all vectors exceeding the upperbound
-#  good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
-#  good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
-  good.inds1 <- 1:length(X1$loss.vec) # TEMP DEBUG!
-  good.inds2 <- 1:length(X2$loss.vec) # TEMP DEBUG!
+  good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
+  good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
+#  good.inds1 <- 1:length(X1$loss.vec) # TEMP DEBUG!
+#  good.inds2 <- 1:length(X2$loss.vec) # TEMP DEBUG!
   
   
   min.loss <- L.upperbound
