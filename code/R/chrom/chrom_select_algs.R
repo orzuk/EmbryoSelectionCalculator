@@ -181,8 +181,8 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
       loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
-  
-  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
+  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
+              loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X, pareto.opt.c = cur.c))
 }
 
 
@@ -287,9 +287,9 @@ optimize_C_branch_and_bound_lipschitz <- function(X, loss.type, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
   
-  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X))
+  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
+              loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X, pareto.opt.c = cur.c))
 }
-
 
 
 # A branch and bound algorithm 
@@ -299,10 +299,9 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   M1 <- floor(M/2)
   M2 <- M-M1
   
-  X1 <- optimize_C_branch_and_bound_lipschitz(X[1:M1,,], loss.type, loss.params)
-  X2 <- optimize_C_branch_and_bound_lipschitz(X[(M1+1):M,,], loss.type, loss.params)
+  X1 <- optimize_C_branch_and_bound(X[1:M1,,], loss.type, loss.params)
+  X2 <- optimize_C_branch_and_bound(X[(M1+1):M,,], loss.type, loss.params)
 
-  
   print("Lengths:")
   print(length(X1$loss.vec))
   print(length(X2$loss.vec))
@@ -325,13 +324,15 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     lip2$pos.mat[i] <-  pmax(X2$pareto.opt.X[i,], 0) %*% lip
     lip2$neg.mat[i] <- -pmin(X2$pareto.opt.X[i,], 0) %*% lip
   }
-  
   L.lowerbound <- min(X1$opt.loss - max(lip2$pos.mat), X2$opt.loss - max(lip1$pos.mat))  
   L.upperbound <- max(X1$opt.loss + max(lip2$neg.mat), X2$opt.loss + max(lip1$neg.mat))  
   
   # Next exclude all vectors exceeding the upperbound
-  good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
-  good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
+#  good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
+#  good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
+  good.inds1 <- 1:length(X1$loss.vec) # TEMP DEBUG!
+  good.inds2 <- 1:length(X2$loss.vec) # TEMP DEBUG!
+  
   
   min.loss <- L.upperbound
   
@@ -348,12 +349,12 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #      print("i1, i2:")
 #      print(i1)
 #      print(i2)
-      cur.loss <- loss_PS(X1$pareto.opt.X[i1] + X2$pareto.opt.X[i1], loss.type, loss.params)
+      cur.loss <- loss_PS(X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,], loss.type, loss.params)
       if(cur.loss < min.loss)
       {
         min.loss <- min(cur.loss, min.loss)      
-        opt.X <- X1$pareto.opt.X[i1] + X2$pareto.opt.X[i1]
-        opt.c <- c(X1$opt.c, X2$opt.X)
+        opt.X <- X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,]
+        opt.c <- c(X1$pareto.opt.c[i1,], X2$pareto.opt.c[i2,])
       }
     }
 
