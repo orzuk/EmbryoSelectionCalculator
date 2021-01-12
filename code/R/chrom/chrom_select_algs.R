@@ -355,6 +355,9 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         min.loss <- min(cur.loss, min.loss)      
         opt.X <- X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,]
         opt.c <- c(X1$pareto.opt.c[i1,], X2$pareto.opt.c[i2,])
+        
+        
+        # update criteria for testing: 
       }
     }
 
