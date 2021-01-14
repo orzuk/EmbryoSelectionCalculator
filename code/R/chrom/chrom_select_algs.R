@@ -342,8 +342,17 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   print(good.inds1)
   print(good.inds2)
   
+  new.good.inds1 <- good.inds1
+  new.good.inds2 <- good.inds2
+  
   print(paste0("Saved: ",  1-length(good.inds1)*length(good.inds2) / (length(X1$loss.vec)*length(X1$loss.vec))))
   for(i1 in good.inds1)
+  {
+    if(!(i1 %in% new.good.inds1)) # skip
+    {
+      print("SKIP i1!")
+      next
+    }
     for(i2 in good.inds2)
     {
 #      print("i1, i2:")
@@ -356,13 +365,25 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         opt.X <- X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,]
         opt.c <- c(X1$pareto.opt.c[i1,], X2$pareto.opt.c[i2,])
         
-        
         # update criteria for testing: 
         L.upperbound <- min.loss
+        print("L Upper:")
+        print(L.upperbound)
+        print("L Upper + Lip:")
+        print(L.upperbound + max(lip2$pos.mat) )
+        print(L.upperbound + max(lip1$pos.mat) )
+        
         new.good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
+        new.good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
       }
+      if(!(i2 %in% new.good.inds2)) # skip
+      {
+        print("SKIP i2!")
+        next
+      }
+      
     }
-
+  }
   print("Now return:")
   return(list(opt.X=opt.X, opt.c=opt.c, opt.loss = min.loss))      
 }
