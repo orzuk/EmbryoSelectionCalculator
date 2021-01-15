@@ -324,6 +324,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     lip2$pos.mat[i] <-  pmax(X2$pareto.opt.X[i,], 0) %*% lip
     lip2$neg.mat[i] <- -pmin(X2$pareto.opt.X[i,], 0) %*% lip
   }
+  print("Upperbounds:")
   L.lowerbound <- min(X1$opt.loss - max(lip2$pos.mat), X2$opt.loss - max(lip1$pos.mat))  
   L.upperbound <- max(X1$opt.loss + max(lip2$neg.mat), X2$opt.loss + max(lip1$neg.mat))  
   
@@ -332,7 +333,14 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
 #  good.inds1 <- 1:length(X1$loss.vec) # TEMP DEBUG!
 #  good.inds2 <- 1:length(X2$loss.vec) # TEMP DEBUG!
-  
+
+  # Try another upperbound: 
+  X1$max.vec = rowMaxs(X1$pareto.opt.X) # take maximum value 
+  X2$max.vec = rowMaxs(X2$pareto.opt.X) # take maximum value 
+  X1$L.lowerbound.vec <- rep(0, length(X1$loss.vec))
+  for(i in 1:length(X1$loss.vec))
+    X1$L.lowerbound.vec[i] = loss_PS(X1$pareto.opt.X[i,] + X2$max.vec, loss.type, loss.params)
+  good.inds1 <- intersect(good.inds1, which(X1$L.lowerbound.vec <= L.upperbound))
   
   min.loss <- L.upperbound
   
@@ -353,6 +361,16 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       print("SKIP i1!")
       next
     }
+    
+    print("i1:")
+    print(i1)
+    if(loss_PS(X1$pareto.opt.X[i1,] + X2$max.vec, loss.type, loss.params) > L.upperbound)
+    {
+      print("SKIP i1 with max!")
+      next
+    }
+#    print("loop over i2:")
+    
     for(i2 in good.inds2)
     {
 #      print("i1, i2:")
