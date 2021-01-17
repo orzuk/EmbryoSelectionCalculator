@@ -402,10 +402,6 @@ get_tensor_lipshitz_params <- function(X, loss.type, loss.params)
   lip <- compute_lipschitz_const(loss.type, loss.params)
     
   print(length(lip))
-  print("X:")
-  print(X)
-  print("DIM x:")
-  print(dim(X))
   X.loss.mat <- matrix(rep(0, M*C), nrow=M, ncol=C)
   lip.pos.mat <- X.loss.mat
   lip.neg.mat <- X.loss.mat
