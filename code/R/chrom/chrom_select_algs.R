@@ -318,18 +318,20 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   }
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
 
+  print("n pareto:")
+  print(n.pareto)
   # Next loop from one side 
-  for(b in c(1:(loss.params$n.blocks)-1))
+  for(b in 1:(loss.params$n.blocks-1))
   {
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
       max.X <- max.X + B[[b2]]$max.X
-
+    print("b=")
+    print(b)
     B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
-
 
     new.X <- c()
     new.c <- c()
@@ -343,7 +345,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
-          if(is.null(dim(cur.c))) # update c: two lists
+          if(is.null(dim(new.c))) # update c: two lists
             new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j], B[[b+1]]$pareto.opt.c[k]))
           else
             new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k]))
@@ -376,7 +378,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
   return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec)))
-  
 }  
     
 
