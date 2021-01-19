@@ -345,10 +345,32 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
-          if(is.null(dim(new.c))) # update c: two lists
+          if(is.null(dim(B[[b]]$pareto.opt.c)) || is.null(dim(B[[b+1]]$pareto.opt.c)) ) # update c: two lists
+          {
+            print("set new.c first:")
             new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j], B[[b+1]]$pareto.opt.c[k]))
+          }
           else
+          {
+#            print("Binding: new.c dim before:")
+#            print(dim(new.c))
+#            print("b pareto:")
+#            print(B[[b]]$pareto.opt.c[j,])
+#            print("b+1 pareto")
+#            print(B[[b+1]]$pareto.opt.c[k])
+ #           print("concat:")
+#            print(c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k])  )
+#            print("new.c before:")
+#            print(new.c)
             new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k]))
+#            print("new.c after:")
+#            print(new.c)
+#            print(paste0("b=",b))
+#            print("dim concat:")
+#            print(dim(c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k])  ))
+#            print("dim new.c:")
+#            print(dim(new.c))
+          }
         }
       }
   # update next layer: 
