@@ -9,32 +9,36 @@ source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
-C <- 3 # number of chromosomal copies
+C <- 5 # number of chromosomal copies
 T <- 6 # number of traits
-M <- 15  # number of blocks 
+M <- 16  # number of blocks 
 
 df <- T # For wishart distribution
 k <- 4
 max_n <- 50
 n.vec <- seq(5, max_n, 5)
 
-n.vec <- C^(2:8)
-iters <- 50
-par <- compare_pareto_P(n.vec, k, C, iters)
 
-max.p.k.n <- max(max(par$p.k*n.vec), max(par$p.k.blocks*n.vec), max(par$p.k.asymptotic2*n.vec)) * 1.01
+compute.pareto.p.stat <- 0
+if(compute.pareto.p.stat)
+{
+  n.vec <- C^(2:8)
+  iters <- 50
+  par <- compare_pareto_P(n.vec, k, C, iters)
 
-plot(n.vec, par$p.k*n.vec, type="l", xlab="n", ylab="p_k(n) n", ylim = c(0, max.p.k.n))  # exact 
-lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic 
-lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
-lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
-lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
-legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
+  max.p.k.n <- max(max(par$p.k*n.vec), max(par$p.k.blocks*n.vec), max(par$p.k.asymptotic2*n.vec)) * 1.01
+
+  plot(n.vec, par$p.k*n.vec, type="l", xlab="n", ylab="p_k(n) n", ylim = c(0, max.p.k.n))  # exact 
+  lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic 
+  lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
+  lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
+  lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
+  legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
        c("exact", "approx", "approx2", "sim", "block"), col=c("black", "green", "blue", "red", "cyan"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 
-plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
-print(max(par$p.k.asymptotic / par$p.k))
-
+  plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
+  print(max(par$p.k.asymptotic / par$p.k))
+}
 #p_k <- rep(0, max_n)
 #for(n in n.vec)
 #{
@@ -69,6 +73,7 @@ loss.params$K <- prev
 loss.params$h.ps <- rep(h.ps, T)
 loss.params$theta <- theta
 loss.params$eta <- 0 # negative L2 regularization 
+loss.params$n.blocks <- 3
 
 loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
 g.d = grad_loss_PS(X, C.mat, "disease", loss.params)

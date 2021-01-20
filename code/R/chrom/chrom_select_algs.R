@@ -303,9 +303,13 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   
   # Divide to blocks: 
   M.vec <- rep(floor(M/loss.params$n.blocks), loss.params$n.blocks)
-  M.vec[1:mod(M, loss.params$n.blocks)] <- M.vec[1:mod(M, loss.params$n.blocks)] + 1 # correct to sum to M
+  if( mod(M, loss.params$n.blocks)>0 )
+    M.vec[1:mod(M, loss.params$n.blocks)] <- M.vec[1:mod(M, loss.params$n.blocks)] + 1 # correct to sum to M
   M.vec.cum <- c(0, cumsum(M.vec))
-  
+  print("M VEC:")
+  print(M.vec)  
+  print("M VEC CUM:")
+  print(M.vec.cum)  
   B <- vector("list", loss.params$n.blocks) 
   n.pareto <- rep(0,  loss.params$n.blocks)
   opt.X.upperbound <- rep(0, T)
@@ -326,57 +330,71 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
       max.X <- max.X + B[[b2]]$max.X
-    print("b=")
-    print(b)
+    print(paste0("b=", b))
     B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
+    print(paste0("num. good inds: ", length(cur.good.inds)))
 
     new.X <- c()
     new.c <- c()
-    for(j in cur.good.inds)  # loop over all vectors in the current stack      
-      for(k in 1:n.pareto[b+1])  # loop over possible pareto-optimal vectors in next layer  
+    ctr <- 0
+    for(j in cur.good.inds)  # loop over all vectors in the current stack   
+    {
+      ctr <- ctr + 1
+      if(mod(ctr,10)==0)
       {
-        if(n.pareto[b]==1)
-          v = B[[b]]$pareto.opt.X + B[[b+1]]$pareto.opt.X[k,]
-        else
-          v = B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X[k,]
-        if(is_pareto_optimal(v, new.X))
-        {
-          new.X <- rbind(new.X, v)
-          if(is.null(dim(B[[b]]$pareto.opt.c)) || is.null(dim(B[[b+1]]$pareto.opt.c)) ) # update c: two lists
-          {
-            print("set new.c first:")
-            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j], B[[b+1]]$pareto.opt.c[k]))
-          }
-          else
-          {
-#            print("Binding: new.c dim before:")
-#            print(dim(new.c))
-#            print("b pareto:")
-#            print(B[[b]]$pareto.opt.c[j,])
-#            print("b+1 pareto")
-#            print(B[[b+1]]$pareto.opt.c[k])
- #           print("concat:")
-#            print(c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k])  )
-#            print("new.c before:")
-#            print(new.c)
-            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k]))
-#            print("new.c after:")
-#            print(new.c)
-#            print(paste0("b=",b))
-#            print("dim concat:")
-#            print(dim(c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k])  ))
-#            print("dim new.c:")
-#            print(dim(new.c))
-          }
-        }
+        print(paste0("ind: ", ctr))
+        print(paste0("Cur vecs:", dim(new.X)[1]))
       }
+      new.v <- B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+      print("Dim v:")
+      print(dim(new.v))
+      new.v <- get_pareto_optimal_vecs(new.v)
+      print("Dim v pareto:")
+      print(dim(new.v$pareto.X))
+      new.X <- rbind(new.X, new.v$pareto.X)
+      new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds)) , 
+                                  B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])   )
+      # Get pareto again:       
+      print("Dim X:")
+      print(dim(new.X))
+      print("Dim c:")
+      print(dim(new.c))
+      new.X <- get_pareto_optimal_vecs(new.X)
+      print("Num pareto union:")
+      print(length(new.X$pareto.inds))
+      new.c <- new.c[new.X$pareto.inds,]
+      new.X <- new.X$pareto.X
+#      for(k in 1:n.pareto[b+1])  # loop over possible pareto-optimal vectors in next layer  
+#      {
+#        if(n.pareto[b]==1)
+#          v = B[[b]]$pareto.opt.X + B[[b+1]]$pareto.opt.X[k,]
+#        else
+#          v = B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X[k,]
+#        if(is_pareto_optimal(v, new.X))
+#        {
+#          new.X <- rbind(new.X, v)
+#          if(n.pareto[b]==1 || n.pareto[b+1]==1 ) # update c: two lists
+#          {
+#            print("set new.c first:")
+#            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j], B[[b+1]]$pareto.opt.c[k]))
+#          }
+#          else
+#          {
+#            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k]))
+#          }
+#        }
+#      }
+    }  # loop on good inds 
   # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
     B[[b+1]]$max.X <- colMaxs(B[[b+1]]$pareto.opt.X, value = TRUE) # Update: Get maximum at each coordinate 
+    n.pareto[b+1] <- dim(B[[b+1]]$pareto.opt.X)[1] # update number of vectors in next layer
+    
+    print(paste0("Num. Next layer: ", dim(new.X)[1]))
     
 #        cur.X <- new.X
 #    cur.c <- new.c
