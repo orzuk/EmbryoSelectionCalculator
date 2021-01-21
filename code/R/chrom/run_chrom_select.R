@@ -9,43 +9,12 @@ source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
-C <- 5 # number of chromosomal copies
-T <- 6 # number of traits
-M <- 16  # number of blocks 
+C <- 3 # number of chromosomal copies
+T <- 4 # number of traits
+M <- 12  # number of blocks 
 
 df <- T # For wishart distribution
 k <- 4
-max_n <- 50
-n.vec <- seq(5, max_n, 5)
-
-
-compute.pareto.p.stat <- 0
-if(compute.pareto.p.stat)
-{
-  n.vec <- C^(2:8)
-  iters <- 50
-  par <- compare_pareto_P(n.vec, k, C, iters)
-
-  max.p.k.n <- max(max(par$p.k*n.vec), max(par$p.k.blocks*n.vec), max(par$p.k.asymptotic2*n.vec)) * 1.01
-
-  plot(n.vec, par$p.k*n.vec, type="l", xlab="n", ylab="p_k(n) n", ylim = c(0, max.p.k.n))  # exact 
-  lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic 
-  lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
-  lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
-  lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
-  legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
-       c("exact", "approx", "approx2", "sim", "block"), col=c("black", "green", "blue", "red", "cyan"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
-
-  plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
-  print(max(par$p.k.asymptotic / par$p.k))
-}
-#p_k <- rep(0, max_n)
-#for(n in n.vec)
-#{
-#  p_k[n] <- pareto_P2(n, k)
-#  # add also simulation  
-#}
-#plot(n.vec, p_k*n.vec, xlab="n", ylab="p_k(n) n")  # analytic 
 
 h.ps <- 0.3  # variane explained by the polygenic score 
 prev <- logspace(-4, -0.5, n=T) # c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease . Should match T 
@@ -59,6 +28,23 @@ Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix
 
 X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
 
+
+loss.C <- "disease"
+loss.params <- c()
+loss.params$K <- prev
+loss.params$h.ps <- rep(h.ps, T)
+loss.params$theta <- theta
+loss.params$eta <- 0 # negative L2 regularization 
+loss.params$n.blocks <- 4
+
+
+sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
+sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
+
+
+sol.quant <- optimize_C_quant(X, "quant", loss.params)
+
 # Example of choosing the index for each block
 c.vec = sample(C, M, replace=TRUE)
 C.mat = matrix(rexp(M*C), nrow=M, ncol=C)
@@ -67,13 +53,11 @@ C.mat = C.mat / rowSums(C.mat)
 X.c = compute_X_c_vec(X, c.vec)
 X.c2 = compute_X_C_mat(X, C.mat)
 
-loss.C <- "disease"
-loss.params <- c()
-loss.params$K <- prev
-loss.params$h.ps <- rep(h.ps, T)
-loss.params$theta <- theta
-loss.params$eta <- 0 # negative L2 regularization 
-loss.params$n.blocks <- 3
+
+loss.C <- "stabilizing"
+bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
+
 
 loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
 g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
@@ -88,16 +72,36 @@ V
 V.pareto = get_pareto_optimal_vecs(V)
 V.pareto
 
-sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
-sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
+max_n <- 50
+n.vec <- seq(5, max_n, 5)
+compute.pareto.p.stat <- 0
+if(compute.pareto.p.stat)
+{
+  n.vec <- C^(2:8)
+  iters <- 50
+  par <- compare_pareto_P(n.vec, k, C, iters)
+  
+  max.p.k.n <- max(max(par$p.k*n.vec), max(par$p.k.blocks*n.vec), max(par$p.k.asymptotic2*n.vec)) * 1.01
+  
+  plot(n.vec, par$p.k*n.vec, type="l", xlab="n", ylab="p_k(n) n", ylim = c(0, max.p.k.n))  # exact 
+  lines(n.vec, par$p.k.asymptotic*n.vec, col="green")  # asymptotic 
+  lines(n.vec, par$p.k.asymptotic2*n.vec, col="blue")  # asymptotic 
+  lines(n.vec, par$p.k.sim*n.vec, col="red")  # simulation 
+  lines(n.vec, par$p.k.blocks*n.vec, col="cyan")  # simulation 
+  legend(0.8 * max(n.vec), 0.3*max.p.k.n,   lwd=c(2,2,2,2), 
+         c("exact", "approx", "approx2", "sim", "block"), col=c("black", "green", "blue", "red", "cyan"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+  
+  plot(n.vec, par$p.k.asymptotic / par$p.k, xlab="n", ylab="ratio")
+  print(max(par$p.k.asymptotic / par$p.k))
+}
+#p_k <- rep(0, max_n)
+#for(n in n.vec)
+#{
+#  p_k[n] <- pareto_P2(n, k)
+#  # add also simulation  
+#}
+#plot(n.vec, p_k*n.vec, xlab="n", ylab="p_k(n) n")  # analytic 
 
-
-sol.quant <- optimize_C_quant(X, "quant", loss.params)
-
-loss.C <- "stabilizing"
-bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
 
 # Try many times: 
 diff.vec <- rep(0, 100)

@@ -355,7 +355,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       print("Dim v pareto:")
       print(dim(new.v$pareto.X))
       new.X <- rbind(new.X, new.v$pareto.X)
-      new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds)) , 
+      new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds)), 
                                   B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])   )
       # Get pareto again:       
       print("Dim X:")
@@ -391,6 +391,10 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
+    print("Pareto b+1:")
+    print(B[[b+1]]$pareto.opt.X)
+    print("Dim Pareto b+1:")
+    print(dim(B[[b+1]]$pareto.opt.X))
     B[[b+1]]$max.X <- colMaxs(B[[b+1]]$pareto.opt.X, value = TRUE) # Update: Get maximum at each coordinate 
     n.pareto[b+1] <- dim(B[[b+1]]$pareto.opt.X)[1] # update number of vectors in next layer
     
