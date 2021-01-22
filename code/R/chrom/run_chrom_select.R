@@ -39,8 +39,10 @@ loss.params$n.blocks <- 4
 
 
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
 sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
+
+print(sol.bb.mid$opt.loss-sol.bb$opt.loss)
+#sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
 
 
 sol.quant <- optimize_C_quant(X, "quant", loss.params)

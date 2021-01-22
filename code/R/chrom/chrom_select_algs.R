@@ -313,10 +313,12 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   B <- vector("list", loss.params$n.blocks) 
   n.pareto <- rep(0,  loss.params$n.blocks)
   opt.X.upperbound <- rep(0, T)
+  opt.c.upperbound <- c()
   for(b in 1:loss.params$n.blocks) # get pareto-optimal vectors for each block 
   {
     B[[b]] <- optimize_C_branch_and_bound(X[(M.vec.cum[b]+1):M.vec.cum[b+1],,], loss.type, loss.params)  # compute pareto optimal vectors for block
     opt.X.upperbound <- opt.X.upperbound + B[[b]]$opt.X
+    opt.c.upperbound <- c(opt.c.upperbound,  B[[b]]$opt.c)
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)
   }
@@ -348,14 +350,14 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         print(paste0("ind: ", ctr))
         print(paste0("Cur vecs:", dim(new.X)[1]))
       }
-      new.v <- B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+      new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       print("Dim v:")
       print(dim(new.v))
       new.v <- get_pareto_optimal_vecs(new.v)
       print("Dim v pareto:")
       print(dim(new.v$pareto.X))
       new.X <- rbind(new.X, new.v$pareto.X)
-      new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds)), 
+      new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])   )
       # Get pareto again:       
       print("Dim X:")
