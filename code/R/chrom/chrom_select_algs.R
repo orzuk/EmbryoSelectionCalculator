@@ -335,7 +335,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
-    print(paste0("num. good inds: ", length(cur.good.inds)))
+    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
 
     new.X <- c()
     new.c <- c()
