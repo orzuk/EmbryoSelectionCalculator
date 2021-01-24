@@ -20,13 +20,13 @@ simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, Sigma.K, sigma.bloc
   sim.vec <- 0
   if(sim.vec)
   {
-    print("Sim vec")  
+#    print("Sim vec")  
     for(i in 1:M)
       for(j in 1:C)
         X[i,j,] <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
   } else
   {   # New: don't assume independence, use Kinship coefficient
-    print("Sim mat")  
+#    print("Sim mat")  
     for(i in 1:M)
       X[i,,] <- rmatnorm(1, Sigma.T, Sigma.K, M=matrix(0, nrow=T, ncol=C))  * sigma.blocks[i]  # V, M = matrix(0, nrow = nrow(U), ncol = nrow(V)))
   }   
@@ -416,4 +416,11 @@ get_tensor_lipshitz_params <- function(X, loss.type, loss.params)
   return(list(X.loss.mat=X.loss.mat, lip.pos.mat=lip.pos.mat, lip.neg.mat=lip.neg.mat))
 }
 
- # Next utilize cosntants in algoruithm   
+# Check if loss function is monotonic
+is_monotone_loss <- function(loss.type)
+{
+  return ( loss.type %in% c("disease", "quant") )
+}
+  
+
+

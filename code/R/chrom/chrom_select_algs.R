@@ -136,10 +136,10 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   
   L.vec <- rep(0, M)
   L.vec[1] = L
-  print(paste("L=", L, " start loop"))
+#  print(paste("L=", L, " start loop"))
   for(i in 2:M)
   {  
-    print(paste0("i=", i))
+    print(paste0("B&B i=", i))
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
@@ -306,10 +306,10 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   if( mod(M, loss.params$n.blocks)>0 )
     M.vec[1:mod(M, loss.params$n.blocks)] <- M.vec[1:mod(M, loss.params$n.blocks)] + 1 # correct to sum to M
   M.vec.cum <- c(0, cumsum(M.vec))
-  print("M VEC:")
-  print(M.vec)  
-  print("M VEC CUM:")
-  print(M.vec.cum)  
+#  print("M VEC:")
+#  print(M.vec)  
+#  print("M VEC CUM:")
+#  print(M.vec.cum)  
   B <- vector("list", loss.params$n.blocks) 
   n.pareto <- rep(0,  loss.params$n.blocks)
   opt.X.upperbound <- rep(0, T)
@@ -345,28 +345,32 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(j in cur.good.inds)  # loop over all vectors in the current stack   
     {
       ctr <- ctr + 1
-      if(mod(ctr,10)==0)
-      {
-        print(paste0("ind: ", ctr))
-        print(paste0("Cur vecs:", dim(new.X)[1]))
-      }
+#      if(mod(ctr,10)==0)
+#      {
+#        print(paste0("ind: ", ctr))
+#        print(paste0("Cur vecs:", dim(new.X)[1]))
+#      }
       new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
-      print("Dim v:")
-      print(dim(new.v))
+#      print("Dim v:")
+#      print(dim(new.v))
       new.v <- get_pareto_optimal_vecs(new.v)
-      print("Dim v pareto:")
-      print(dim(new.v$pareto.X))
+#      print("Dim v pareto:")
+#      print(dim(new.v$pareto.X))
       new.X <- rbind(new.X, new.v$pareto.X)
+      print("cbind dims:")
+      print(dim(  cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE) )))
+      print( dim(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])    )
       new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])   )
+      warnings()
       # Get pareto again:       
-      print("Dim X:")
-      print(dim(new.X))
-      print("Dim c:")
-      print(dim(new.c))
+#      print("Dim X:")
+#      print(dim(new.X))
+#      print("Dim c:")
+#      print(dim(new.c))
       new.X <- get_pareto_optimal_vecs(new.X)
-      print("Num pareto union:")
-      print(length(new.X$pareto.inds))
+      if( length(new.X$pareto.inds)<=1 )
+        print(paste0("Num pareto union: ", length(new.X$pareto.inds)))
       new.c <- new.c[new.X$pareto.inds,]
       new.X <- new.X$pareto.X
 #      for(k in 1:n.pareto[b+1])  # loop over possible pareto-optimal vectors in next layer  
@@ -393,14 +397,21 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
-    print("Pareto b+1:")
-    print(B[[b+1]]$pareto.opt.X)
-    print("Dim Pareto b+1:")
-    print(dim(B[[b+1]]$pareto.opt.X))
+#    print("Pareto b+1:")
+#    print(B[[b+1]]$pareto.opt.X)
+#    print("Dim Pareto b+1:")
+#    print(dim(B[[b+1]]$pareto.opt.X))
     B[[b+1]]$max.X <- colMaxs(B[[b+1]]$pareto.opt.X, value = TRUE) # Update: Get maximum at each coordinate 
-    n.pareto[b+1] <- dim(B[[b+1]]$pareto.opt.X)[1] # update number of vectors in next layer
+    if(is.matrix(B[[b+1]]$pareto.opt.X))
+      n.pareto[b+1] <- dim(B[[b+1]]$pareto.opt.X)[1] # update number of vectors in next layer
+    else
+    {
+      print("Only one!")
+      print(B[[b+1]]$pareto.opt.X)
+      n.pareto[b+1] <- 1 # only one vector 
+    }
     
-    print(paste0("Num. Next layer: ", dim(new.X)[1]))
+#    print(paste0("Num. Next layer: ", dim(new.X)[1]))
     
 #        cur.X <- new.X
 #    cur.c <- new.c
@@ -414,6 +425,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   L <- dim(new.X)[1]
   if(is.null(L)) # one dimensional array 
   {
+    print("L=1 !!! ")
     L = 1
     loss.vec = loss_PS(new.X, loss.type, loss.params)
   }  else
@@ -423,7 +435,14 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       loss.vec[i] <- loss_PS(new.X[i,], loss.type, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
-  return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec)))
+  if(L == 1)
+  {
+    print("i.min:")
+    print(i.min)
+    return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
+  }
+  else
+    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec)))
 }  
     
 
@@ -625,15 +644,16 @@ optimize_C <- function(X, loss.C, loss.params, alg.str)
 
   if(loss.C == "quant") # easy optimization for quantitative traits 
     return(optimize_C_quant(X, loss.C, loss.params))
-  if(alg.str == "branch_and_bound")
-    return(optimize_C_branch_and_bound(X, loss.C, loss.params))
-  if(alg.str == "branch_and_bound_lipschitz")
-    return(optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params))
   if(alg.str == "relax")  # here we need to set init
     return(optimize_C_relax(X, loss.params$C.init, loss.C, loss.params))  
   if(loss.C == "stabilizing")
     return(optimize_C_stabilizing_exact(X, loss.C, loss.params))
-  
+  if(alg.str == "branch_and_bound")
+    return(optimize_C_branch_and_bound(X, loss.C, loss.params))
+  if(alg.str == "branch_and_bound_lipschitz")
+    return(optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params))
+  if(alg.str == "branch_and_bound_lipschitz_middle")
+    return(optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params))
 }  
   
 
@@ -645,11 +665,13 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   gain.mat <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
+    print(paste0("Iter=", t))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+#    print("Solve:")
     sol <- optimize_C(X, loss.C, loss.params, params$alg.str)
     
     # Next compute average gain vs. random: 
-    gain.vec[t] <- sol$opt.los
+    gain.vec[t] <- sol$opt.loss
     if("loss.mat" %in% names(sol))
       gain.mat[t] <- sol$loss.mat
     else

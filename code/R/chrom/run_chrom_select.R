@@ -9,9 +9,9 @@ source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
-C <- 3 # number of chromosomal copies
+C <- 10 # number of chromosomal copies
 T <- 4 # number of traits
-M <- 12  # number of blocks 
+M <- 23  # number of blocks 
 
 df <- T # For wishart distribution
 k <- 4
@@ -38,9 +38,10 @@ loss.params$eta <- 0 # negative L2 regularization
 loss.params$n.blocks <- 4
 
 
-sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
 
+# Only if block size small enough
+sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
 print(sol.bb.mid$opt.loss-sol.bb$opt.loss)
 #sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
 
