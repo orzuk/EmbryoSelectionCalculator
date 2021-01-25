@@ -360,9 +360,18 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       print("cbind dims:")
       print(dim(  cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE) )))
       print( dim(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])    )
+      if( length(new.v$pareto.inds)<=1 )
+      {
+        print("1: ")
+        print(cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE)    ) )
+        print("2: ")
+        print( B[[b+1]]$pareto.opt.c[new.v$pareto.inds,] )
+      }
+    
+    
       new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   B[[b+1]]$pareto.opt.c[new.v$pareto.inds,])   )
-      warnings()
+      print(warnings())
       # Get pareto again:       
 #      print("Dim X:")
 #      print(dim(new.X))
