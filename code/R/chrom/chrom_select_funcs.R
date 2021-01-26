@@ -392,7 +392,6 @@ compute_lipschitz_const <- function(loss.type, loss.params)
     lip <- loss.params$theta/sqrt(2*pi)  # constant doesn't depend on prevalence 
   }
   return (lip)
-  
 }
 
 # compute the maximal contribution of each vector to the loss
@@ -401,7 +400,6 @@ get_tensor_lipshitz_params <- function(X, loss.type, loss.params)
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   lip <- compute_lipschitz_const(loss.type, loss.params)
     
-  print(length(lip))
   X.loss.mat <- matrix(rep(0, M*C), nrow=M, ncol=C)
   lip.pos.mat <- X.loss.mat
   lip.neg.mat <- X.loss.mat
@@ -412,7 +410,6 @@ get_tensor_lipshitz_params <- function(X, loss.type, loss.params)
       lip.pos.mat[i,j] <- pmax(X[i,j,], 0) %*% lip
       lip.neg.mat[i,j] <- -pmin(X[i,j,], 0) %*% lip
     }
-  
   return(list(X.loss.mat=X.loss.mat, lip.pos.mat=lip.pos.mat, lip.neg.mat=lip.neg.mat))
 }
 

@@ -13,7 +13,7 @@ source("chrom_select_algs.R")
 # SEt all parameters
 params <- c()
 params$M <- 6 # 22 
-params$c.vec <- 2:3
+params$c.vec <- 2:5
 params$T <- 5
 params$iters <- 100
 df <- 5 # For wishart distribution
@@ -48,7 +48,7 @@ if(run.plots)
   }
     
 # Plot: 
-plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(0, max(gain.vec)), main=paste0("Gain for ", loss.C, " loss"))
+plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(min(0, min(gain.vec)), max(0, max(gain.vec))), main=paste0("Gain for ", loss.C, " loss"))
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 
 
