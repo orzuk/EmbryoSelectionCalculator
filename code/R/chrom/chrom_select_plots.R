@@ -49,6 +49,8 @@ if(run.plots)
     
 # Plot: 
 plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(min(0, min(gain.vec)), max(0, max(gain.vec))), main=paste0("Gain for ", loss.C, " loss"))
+points(params$c.vec, gain.embryo.vec) # compare to gain just form embryo selection 
+
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 
 
