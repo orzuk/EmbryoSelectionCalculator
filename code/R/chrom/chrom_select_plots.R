@@ -34,6 +34,7 @@ loss.params$eta <- 0 # negative L2 regularization
 
 gain.vec <- rep(0, length(params$C.vec))
 gain.mat <- rep(0, length(params$C.vec))
+gain.embryo.vec <- rep(0, length(params$C.vec)) # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
 params$alg.str <- "branch_and_bound_lipschitz_middle" # "exact" # "branch_and_bound"
 if(run.plots)
@@ -42,14 +43,15 @@ if(run.plots)
     params$C <- params$c.vec[i]
     Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
     is.positive.definite(Sigma.K)
-    L  <- compute_gain_sim(params, loss.C, loss.params)
+    L  <- compute_gain_sim(params, loss.C, loss.params) # chromosomal selection
     gain.vec[i] <- L$gain
+    gain.embryo.vec[i] <- multi.trait.gain.mean(params$C, Sigma.K, loss.params$theta, loss.C) # embryo selection
 #    gain.mat[i] <- L$gain.mat
   }
     
 # Plot: 
 plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(min(0, min(gain.vec)), max(0, max(gain.vec))), main=paste0("Gain for ", loss.C, " loss"))
-points(params$c.vec, gain.embryo.vec) # compare to gain just form embryo selection 
+points(params$c.vec, gain.embryo.vec, col="red") # compare to gain just form embryo selection 
 
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 
