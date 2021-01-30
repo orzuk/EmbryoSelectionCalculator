@@ -37,6 +37,8 @@ gain.mat <- rep(0, length(params$C.vec))
 gain.embryo.vec <- rep(0, length(params$C.vec)) # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
 params$alg.str <- "branch_and_bound_lipschitz_middle" # "exact" # "branch_and_bound"
+embryo.loss.params = loss.params
+embryo.loss.params$alg.str = "embryo"
 if(run.plots)
   for(i in 1:length(params$c.vec))
   {
@@ -45,7 +47,8 @@ if(run.plots)
     is.positive.definite(Sigma.K)
     L  <- compute_gain_sim(params, loss.C, loss.params) # chromosomal selection
     gain.vec[i] <- L$gain
-    gain.embryo.vec[i] <- multi.trait.gain.mean(params$C, Sigma.K, loss.params$theta, loss.C) # embryo selection
+    L <- compute_gain_sim(params$C, Sigma.K, loss.params$theta, loss.C) # embryo selection   multi.trait.gain.mean
+    gain.embryo.vec[i] <- L$gain
 #    gain.mat[i] <- L$gain.mat
   }
     

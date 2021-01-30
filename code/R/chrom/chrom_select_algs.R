@@ -646,10 +646,31 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 
 
 # A wrapper function for all optimizations
+optimize_C_embryo <- function(X, loss.C, loss.params)
+{
+  X.block.sum <- apply(X, 2, colSums) # sum over blocks 
+  for(i in 1:C)
+    loss.vec[i] = loss_PS(X.sum[i,], loss.C, loss.params)  
+  
+  opt.c <- which.min(loss.vec)
+  opt.loss <- min(loss.vec)
+  opt.X <- X.block.sum[opt.c,]
+  
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec)) # return identity of optimal embryo 
+}
+  
+  
+
+
+# A wrapper function for all optimizations
 optimize_C <- function(X, loss.C, loss.params, alg.str)
 {
   M <- dim(X)[1]; C <- dim(X)[2];  T <- dim(X)[3]
 
+  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
+    return(optimize_C_embryo(X, loss.C, loss.params))
+  
+  
   if(loss.C == "quant") # easy optimization for quantitative traits 
     return(optimize_C_quant(X, loss.C, loss.params))
   if(alg.str == "relax")  # here we need to set init
@@ -678,11 +699,10 @@ compute_gain_sim <- function(params, loss.C, loss.params)
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
 #    print("Solve:")
     sol <- optimize_C(X, loss.C, loss.params, params$alg.str)
-    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
+#    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
 
     # Compute also score without selection: 
     rand.vec[t] <- loss_PS(compute_X_c_vec(X, rep(1, params$M)), loss.C, loss.params)
-    
     
     if(sol$opt.loss > sol2$opt.loss)
       print("Error! Adding C increased error!")
