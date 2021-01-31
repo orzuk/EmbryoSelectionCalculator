@@ -649,15 +649,21 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 optimize_C_embryo <- function(X, loss.C, loss.params)
 {
   C = dim(X)[2]
+  loss.vec <- rep(0, C)
   X.block.sum <- apply(X, 2, colSums) # sum over blocks 
   for(i in 1:C)
-    loss.vec[i] = loss_PS(X.block.sum[i,], loss.C, loss.params)  
-  
+  {
+#    print("Compute i=")
+#    print(i)
+#    print("X vec col:")
+#    print(X.block.sum[,i])
+    loss.vec[i] = loss_PS(X.block.sum[,i], loss.C, loss.params)  
+  }
   opt.c <- which.min(loss.vec)
   opt.loss <- min(loss.vec)
   opt.X <- X.block.sum[opt.c,]
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec)) # return identity of optimal embryo 
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=opt.c)) # return identity of optimal embryo 
 }
   
   
