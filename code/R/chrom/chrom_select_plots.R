@@ -32,9 +32,9 @@ loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease
 loss.params$eta <- 0 # negative L2 regularization 
 
 
-gain.vec <- rep(0, length(params$C.vec))
-gain.mat <- rep(0, length(params$C.vec))
-gain.embryo.vec <- rep(0, length(params$C.vec)) # the gain when selecting embryos (no chromosomes)
+gain.vec <- rep(0, length(params$c.vec))
+gain.mat <- rep(0, length(params$c.vec))
+gain.embryo.vec <- rep(0, length(params$c.vec)) # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
 params$alg.str <- "branch_and_bound_lipschitz_middle" # "exact" # "branch_and_bound"
 embryo.loss.params = loss.params
@@ -47,14 +47,17 @@ if(run.plots)
     is.positive.definite(Sigma.K)
     L  <- compute_gain_sim(params, loss.C, loss.params) # chromosomal selection
     gain.vec[i] <- L$gain
-    L <- compute_gain_sim(params$C, Sigma.K, loss.params$theta, loss.C) # embryo selection   multi.trait.gain.mean
-    gain.embryo.vec[i] <- L$gain
+    L.embryo <- compute_gain_sim(params, loss.C, embryo.loss.params) # embryo selection   multi.trait.gain.mean
+    gain.embryo.vec[i] <- L.embryo$gain
 #    gain.mat[i] <- L$gain.mat
   }
     
 # Plot: 
 plot(params$c.vec, gain.vec, xlab="C", ylab="Gain", ylim = c(min(0, min(gain.vec)), max(0, max(gain.vec))), main=paste0("Gain for ", loss.C, " loss"))
 points(params$c.vec, gain.embryo.vec, col="red") # compare to gain just form embryo selection 
+legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), c("chrom", "embryo"), col=c("black", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+
+
 
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 

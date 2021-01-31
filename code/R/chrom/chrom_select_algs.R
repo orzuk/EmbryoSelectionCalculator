@@ -333,7 +333,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
       max.X <- max.X + B[[b2]]$max.X
-    print(paste0("b=", b))
+#    print(paste0("b=", b))
     B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
@@ -648,9 +648,10 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 # A wrapper function for all optimizations
 optimize_C_embryo <- function(X, loss.C, loss.params)
 {
+  C = dim(X)[2]
   X.block.sum <- apply(X, 2, colSums) # sum over blocks 
   for(i in 1:C)
-    loss.vec[i] = loss_PS(X.sum[i,], loss.C, loss.params)  
+    loss.vec[i] = loss_PS(X.block.sum[i,], loss.C, loss.params)  
   
   opt.c <- which.min(loss.vec)
   opt.loss <- min(loss.vec)
@@ -695,17 +696,20 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   rand.vec <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
-    print(paste0("Iter=", t))
+    print(paste0(params$alg.str, ": Iter=", t))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
 #    print("Solve:")
     sol <- optimize_C(X, loss.C, loss.params, params$alg.str)
 #    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
-
+#    if(sol$opt.loss > sol2$opt.loss)
+#      print("Error! Adding C increased error!")
+    sol.e <- optimize_C(X, loss.C, loss.params, "embryo")
+##    if(sol$opt.loss > sol.e$opt.loss)
+#3      print("Error! embryo selection has lower loss!")
+    
     # Compute also score without selection: 
     rand.vec[t] <- loss_PS(compute_X_c_vec(X, rep(1, params$M)), loss.C, loss.params)
     
-    if(sol$opt.loss > sol2$opt.loss)
-      print("Error! Adding C increased error!")
     
     # Next compute average gain vs. random: 
     gain.vec[t] <- sol$opt.loss
