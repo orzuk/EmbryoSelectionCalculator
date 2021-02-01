@@ -697,36 +697,44 @@ optimize_C <- function(X, loss.C, loss.params, alg.str)
 # Compute average gain using simulations 
 compute_gain_sim <- function(params, loss.C, loss.params)
 {
+  n.algs <- length(params$alg.str)
   gain.vec <- rep(0, params$iters)
-  gain.mat <- rep(0, params$iters)
+  gain.mat <- matrix(rep(0, params$iters*n.algs), nrow=params$iters)
   rand.vec <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
     print(paste0(params$alg.str, ": Iter=", t))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-#    print("Solve:")
-    sol <- optimize_C(X, loss.C, loss.params, params$alg.str)
-#    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
-#    if(sol$opt.loss > sol2$opt.loss)
-#      print("Error! Adding C increased error!")
-    sol.e <- optimize_C(X, loss.C, loss.params, "embryo")
-##    if(sol$opt.loss > sol.e$opt.loss)
-#3      print("Error! embryo selection has lower loss!")
+
+    
+    #    print("Solve:")
+    
+    # New: loop on all methods (same X to reduce variance) 
     
     # Compute also score without selection: 
     rand.vec[t] <- loss_PS(compute_X_c_vec(X, rep(1, params$M)), loss.C, loss.params)
-    
-    
+    for(a in 1:n.algs)
+    {
+      sol <- optimize_C(X, loss.C, loss.params, params$alg.str[a])
+#    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
+#    if(sol$opt.loss > sol2$opt.loss)
+#      print("Error! Adding C increased error!")
+#    sol.e <- optimize_C(X, loss.C, loss.params, "embryo")
+#    if(sol$opt.loss > sol.e$opt.loss)
+#      print("Error! embryo selection has lower loss!")
+#    
+
     # Next compute average gain vs. random: 
-    gain.vec[t] <- sol$opt.loss
-    if("loss.mat" %in% names(sol))
-      gain.mat[t] <- sol$loss.mat
-    else
-      gain.mat[t] <- 0 
-  }
-  gain <- mean(gain.vec) - mean(rand.vec) # compute optimal loss. Should subtract mean loss  
-  gain.mat <- mean(gain.mat)
-  return(list(gain=gain, gain.mat=gain.mat, gain.vec=gain.vec, rand.vec=rand.vec)) # Need to reduce the mean gain without selection 
+      gain.mat[t,a] <- sol$opt.loss
+#    if("loss.mat" %in% names(sol))
+#      gain.mat[t] <- sol$loss.mat
+#    else
+#      gain.mat[t] <- 0 
+    } # loop on algorithm 
+  } # loop on iters
+  gain <- colMeans(gain.mat) - mean(rand.vec) # compute optimal loss. Should subtract mean loss  
+#  gain.mat <- mean(gain.mat) # gain.mat=gain.mat,
+  return(list(gain=gain,  gain.mat=gain.mat, rand.vec=rand.vec)) # Need to reduce the mean gain without selection 
 }
 
 
