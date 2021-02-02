@@ -13,7 +13,7 @@ source("chrom_select_algs.R")
 # SEt all parameters
 params <- c()
 params$M <- 6 # 22 
-params$c.vec <- 2:4
+params$c.vec <- 2:10
 params$T <- 5
 params$iters <- 100
 df <- 5 # For wishart distribution
@@ -33,9 +33,10 @@ loss.params$eta <- 0 # negative L2 regularization
 
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
-gain.mat <- matrix(rep(0, length(params$c.vec)*3), ncol = 3)
 run.plots <- 1
-params$alg.str <- c("embryo", "branch_and_bound_lipschitz_middle", "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "branch_and_bound_lipschitz_middle") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+n.methods <- length(params$alg.str)
+gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #embryo.loss.params = loss.params
 #embryo.loss.params$alg.str = "embryo"
 #bb.loss.params = loss.params
@@ -53,14 +54,18 @@ if(run.plots)
   }
     
 # Plot: 
-plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", pch=4, ylim = c(1.5*min(0, min(gain.embryo.vec, min(gain.vec))), max(0, max(gain.vec))), main=paste0("Gain for ", loss.C, " loss"))
-points(params$c.vec, gain.mat[,2], col="red") # compare to gain just form embryo selection 
-points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
-legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), c("chrom", "embryo", "bb"), col=c("black", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.C, " loss"))
+lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
+legend(0.9 * max(params$c.vec), 0,   lwd=c(2,2), 
+       c( "embryo", "chrom"), col=c("black", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+#points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
+#legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), 
+#       c( "embryo", "chrom", "bb"), col=c("black", "red", "blue"), pch=c(4,1,3), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 
 
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 
+plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", col="blue", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.C, " loss"))
 
 
     

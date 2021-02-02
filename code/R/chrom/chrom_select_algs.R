@@ -659,9 +659,14 @@ optimize_C_embryo <- function(X, loss.C, loss.params)
 #    print(X.block.sum[,i])
     loss.vec[i] = loss_PS(X.block.sum[,i], loss.C, loss.params)  
   }
+  
   opt.c <- which.min(loss.vec)
+#  print("Opt c=")
+#  print(opt.c)
   opt.loss <- min(loss.vec)
-  opt.X <- X.block.sum[opt.c,]
+#  print("Dim X block:")
+#  print(dim(X.block.sum))
+  opt.X <- X.block.sum[,opt.c]
   
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=opt.c)) # return identity of optimal embryo 
 }
@@ -703,7 +708,7 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   rand.vec <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
-    print(paste0(params$alg.str, ": Iter=", t))
+    print(paste0(params$alg.str, ": Iter=", t, "Dim: (M, C, T)=", params$M, " ", params$C, " ", params$T))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
 
     
