@@ -139,10 +139,10 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 #  print(paste("L=", L, " start loop"))
   for(i in 2:M)
   {  
-#    print(paste0("B&B i=", i))
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
+    print(paste0("B&B i=", i, " L=", L))
     new.X <- c()
     new.c <- c()
     for(j in 1:L)  # loop over all vectors in the current stack      
@@ -708,10 +708,9 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   rand.vec <- rep(0, params$iters)
   for (t in 1:params$iters)
   {
-    print(paste0(params$alg.str, ": Iter=", t, "Dim: (M, C, T)=", params$M, " ", params$C, " ", params$T))
+    print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$C, " ", params$T))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
 
-    
     #    print("Solve:")
     
     # New: loop on all methods (same X to reduce variance) 

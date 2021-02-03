@@ -5,17 +5,20 @@ library(rWishart)
 library(matrixcalc)
 library(matrixNormal)
 library(Rfast)
-setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
+setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") 
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 
+figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
+
+
 # SEt all parameters
 params <- c()
-params$M <- 6 # 22 
+params$M <- 22 # try full chromosomes  
 params$c.vec <- 2:10
-params$T <- 5
-params$iters <- 100
+params$T <- 5 # number of traits 
+params$iters <- 3
 df <- 5 # For wishart distribution
 
 h.ps <- 0.3  # variane explained by the polygenic score 
@@ -54,10 +57,14 @@ if(run.plots)
   }
     
 # Plot: 
+
+dev.off()
+jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
 plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.C, " loss"))
 lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
-legend(0.9 * max(params$c.vec), 0,   lwd=c(2,2), 
-       c( "embryo", "chrom"), col=c("black", "red"), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
+       c( "embryo", "chrom"), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+dev.off()
 #points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
 #legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), 
 #       c( "embryo", "chrom", "bb"), col=c("black", "red", "blue"), pch=c(4,1,3), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
@@ -65,7 +72,6 @@ legend(0.9 * max(params$c.vec), 0,   lwd=c(2,2),
 
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
 
-plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", col="blue", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.C, " loss"))
 
 
     
