@@ -328,7 +328,15 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #  print("n pareto:")
 #  print(n.pareto)
   # Next loop from one side 
-  for(b in 1:(loss.params$n.blocks-1))
+  if(loss.params$n.blocks==1)
+  {
+    run.blocks <- c()
+    new.X <- B[[b]]$pareto.opt.X
+  }
+  else
+    run.blocks <- 1:(loss.params$n.blocks-1)
+  
+  for(b in run.blocks)
   {
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))

@@ -15,7 +15,7 @@ figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
 
 # SEt all parameters
 params <- c()
-params$M <- 22 # try full chromosomes  
+params$M <- 11 # try full chromosomes  
 params$c.vec <- 2:10
 params$T <- 5 # number of traits 
 params$iters <- 3
@@ -33,7 +33,7 @@ loss.params$K <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease
 loss.params$h.ps <- rep(h.ps, params$T)
 loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
 loss.params$eta <- 0 # negative L2 regularization 
-
+loss.params$n.blocks <- 1
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
