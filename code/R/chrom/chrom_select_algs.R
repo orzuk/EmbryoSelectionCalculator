@@ -138,20 +138,39 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   L.vec[1] = L
 #  print(paste("L=", L, " start loop"))
   for(i in 2:M)
-  {  
+  {
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
     print(paste0("B&B i=", i, " L=", L))
     new.X <- c()
     new.c <- c()
+    
+    # We know that the first vectors pareto optimal
+    new.X <- t(t(cur.X) + X[i,1,])  # may need to transpose here !
+    new.c <- cbind(cur.c, rep(1, L) )
+#    print("cur x:")
+#    print(cur.X)
+#    print("xi:")
+#    print(X[i,1,])
+#    print("new x:")
+#    print(new.X)
+#    
+#    print("cur.c:")
+#    print(cur.c)
+#    print("new c:")
+#    print(new.c)
+    
     for(j in 1:L)  # loop over all vectors in the current stack      
-      for(c in 1:C)  # loop over possible vectors to add 
+      for(c in 2:C)  # loop over possible vectors to add 
       {
         if(is.null(dim(cur.X)))
           v = cur.X+X[i,c,]
         else
           v = cur.X[j,]+X[i,c,]
+        print("Check pareto:")
+        print(v)
+        print(new.X)
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
@@ -161,6 +180,16 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
             new.c <- rbind(new.c, c(cur.c[j,], c) )
         }
       }
+#    if((i > 2) && (dim(new.X)[1]==dim(cur.X)[1])) # why should they be the same so often? 
+#    {
+#      print("Cur c:")
+#      print(cur.c)
+#      print("New c:")
+#      print(new.c)
+#      print(z[44])
+#    }
+      
+      
     cur.X <- new.X
     cur.c <- new.c
     L.vec[i] = dim(new.X)[1]  
@@ -332,6 +361,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   {
     run.blocks <- c()
     new.X <- B[[b]]$pareto.opt.X
+    new.c <- B[[b]]$pareto.opt.c
   }
   else
     run.blocks <- 1:(loss.params$n.blocks-1)
@@ -347,7 +377,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
 #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
-
     new.X <- c()
     new.c <- c()
     ctr <- 0
