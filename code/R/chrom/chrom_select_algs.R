@@ -121,7 +121,7 @@ optimize_C_quant <- function(X, loss.C, loss.params)
 
 
 
-# A branch and bound algorithm 
+# A branch and bound algorithm for finding the X combination with minimal loss 
 optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 {
 # print("Start optimize B&B") 
@@ -147,20 +147,12 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     new.c <- c()
     
     # We know that the first vectors pareto optimal
-    new.X <- t(t(cur.X) + X[i,1,])  # may need to transpose here !
+    if(L>1)
+      new.X <- t(t(cur.X) + X[i,1,])  # may need to transpose here !
+    else
+      new.X <- cur.X + X[i,1,]
     new.c <- cbind(cur.c, rep(1, L) )
-#    print("cur x:")
-#    print(cur.X)
-#    print("xi:")
-#    print(X[i,1,])
-#    print("new x:")
-#    print(new.X)
-#    
-#    print("cur.c:")
-#    print(cur.c)
-#    print("new c:")
-#    print(new.c)
-    
+
     for(j in 1:L)  # loop over all vectors in the current stack      
       for(c in 2:C)  # loop over possible vectors to add 
       {
@@ -168,9 +160,6 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
           v = cur.X+X[i,c,]
         else
           v = cur.X[j,]+X[i,c,]
-        print("Check pareto:")
-        print(v)
-        print(new.X)
         if(is_pareto_optimal(v, new.X))
         {
           new.X <- rbind(new.X, v)
@@ -188,12 +177,14 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 #      print(new.c)
 #      print(z[44])
 #    }
-      
-      
     cur.X <- new.X
     cur.c <- new.c
-    L.vec[i] = dim(new.X)[1]  
-#    if(i == M)
+    if(is.null(dim(new.X)[1]))
+      L.vec[i] = 1
+    else
+      L.vec[i] = dim(new.X)[1]  
+    
+    #    if(i == M)
 #      print(paste0("B&B C=", C, " i=", i, " out of ", M, " Stack Size:", dim(new.X)[1]))
   } # end loop on blocks 
   
@@ -215,113 +206,12 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 }
 
 
-# A branch and bound algorithm 
-optimize_C_branch_and_bound_lipschitz <- function(X, loss.type, loss.params)
-{
-  print("Start optimize B&B Lipschitz") 
-  M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
-  lip <- get_tensor_lipshitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors 
-  
-  lip$max.pos <- apply(lip$lip.pos.mat, 1, max)
-  lip$max.neg <- apply(lip$lip.neg.mat, 1, max)
-  # Need to save also c-vec for each branch
-
-  par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
-
-  cur.c <- t(t(par.X$pareto.inds))
-  cur.X <- par.X$pareto.X
-  L <- dim(cur.X)[1]
-  if(is.null(L)) # one dimensional array 
-    L = 1
-  
-  L.vec <- rep(0, M)
-  L.vec[1] = L
-  print(paste("L=", L, " start loop"))
-  for(i in c(2:M))
-  {  
-#    print(paste0("i=", i))
-    L <- dim(cur.X)[1]
-    if(is.null(L)) # one dimensional array 
-      L = 1
-
-    # New: exclude vectors with high loss 
-    if(i < M)
-    {
-#      print(paste0("L is:", L))
-#      print("Dim cur.X:")
-#      print(dim(cur.X))
-      cur.scores <- rep(0, L)
-      for(j in 1:L)
-        cur.scores[j] = loss_PS(cur.X[j,], loss.type, loss.params) # New part: here filter pareto-optimal vectors with too low values 
-      min.score <- min(cur.scores) # - sum(lip$max.pos[(i+1):M]) # Next, exclude     
-      # Next, exclude all solutions with too high scores: 
-#      print("Score bound:")
-#      print(sum(lip$max.pos[(i+1):M]) +  sum(lip$max.neg[(i+1):M]))
-#      print("Max cur score:")
-#      print(max(cur.scores))
-      
-      
-      good.inds <- which(cur.scores <= min.score + sum(lip$max.pos[(i+1):M]) +  sum(lip$max.neg[(i+1):M]))
-      if(length(good.inds) < L)
-      {
-        print("Saved: Good inds:")
-        print(length(good.inds))
-        print(L)
-      }
-      cur.X <- cur.X[good.inds,] # take only good ones 
-      cur.c <- cur.c[good.inds,]
-    }  
-    
-    
-    new.X <- c()
-    new.c <- c()
-    L <- length(good.inds)
-#    print(dim(cur.X))
-    for(j in 1:L)  # loop over all vectors in the current stack      
-      for(c in 1:C)  # loop over possible vectors to add 
-      {
-        if(is.null(dim(cur.X)))
-          v = cur.X+X[i,c,]
-        else
-          v = cur.X[j,]+X[i,c,]
-        if(is_pareto_optimal(v, new.X))  # first check if pareto optimal 
-        {
-          new.X <- rbind(new.X, v)
-          if(is.null(dim(cur.c)))
-            new.c <- rbind(new.c, c(cur.c[j], c) )
-          else
-            new.c <- rbind(new.c, c(cur.c[j,], c) )
-        }
-      }
-    L.vec[i] = dim(new.X)[1]  
-    cur.X <- new.X
-    cur.c <- new.c
-    if(i == M)
-      print(paste0("B&B C=", C, " i=", i, " out of ", M, " Stack Size:", dim(new.X)[1]))
-  }
-  
-  # Finally find the cost-minimizer out ofthe Pareto-optimal vectors
-  L <- dim(cur.X)[1]
-  if(is.null(L)) # one dimensional array 
-  {
-    L = 1
-    loss.vec = loss_PS(cur.X, loss.type, loss.params)
-  }  else
-  {
-    loss.vec <- rep(0, L)
-    for(i in 1:L)
-      loss.vec[i] <- loss_PS(cur.X[i,], loss.type, loss.params)
-  }
-  i.min <- which.min(loss.vec) # find vector minimizing loss 
-  
-  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
-              loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X, pareto.opt.c = cur.c))
-}
-
 
 # A branch and bound algorithm 
 optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.params)
 {
+  # Add timing: 
+  
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
   
 
