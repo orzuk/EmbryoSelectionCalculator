@@ -6,7 +6,10 @@ library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 
+Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
 source('chrom_select_funcs.R')
+
+
 
 # a function for optimizing the selection of chromosomes:
 # Run the optimization to find the optimal C:
@@ -160,7 +163,21 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
           v = cur.X+X[i,c,]
         else
           v = cur.X[j,]+X[i,c,]
-        if(is_pareto_optimal(v, new.X))
+        
+        R = is_pareto_optimal(v, new.X)
+        CPP = is_pareto_optimal_rcpp(v, new.X)
+        if(R != CPP)
+        {
+          print("Error! pareto optimal wrong!!!")
+          print(paste0("R=", R, " CPP=", CPP))
+          print("v=")
+          print(v)
+          print("Xmat=")
+          print(new.X)
+          print(zzz[234324])
+        }
+        
+        if(is_pareto_optimal_rcpp(v, new.X)) # new: use rcpp 
         {
           new.X <- rbind(new.X, v)
           if(is.null(dim(cur.c)))
@@ -211,13 +228,10 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.params)
 {
   # Add timing: 
-  
+  start.time <- Sys.time()
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
-  
-
   if(!("n.blocks" %in% names(loss.params)))  
     loss.params$n.blocks <- 2  # default: divide to two blocks 
-
   lip.alpha <- compute_lipschitz_const(loss.type, loss.params)
   lip.tensor <- get_tensor_lipshitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors 
 
@@ -226,10 +240,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   if( mod(M, loss.params$n.blocks)>0 )
     M.vec[1:mod(M, loss.params$n.blocks)] <- M.vec[1:mod(M, loss.params$n.blocks)] + 1 # correct to sum to M
   M.vec.cum <- c(0, cumsum(M.vec))
-#  print("M VEC:")
-#  print(M.vec)  
-#  print("M VEC CUM:")
-#  print(M.vec.cum)  
   B <- vector("list", loss.params$n.blocks) 
   n.pareto <- rep(0,  loss.params$n.blocks)
   opt.X.upperbound <- rep(0, T)
@@ -243,28 +253,27 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     n.pareto[b] <-  length(B[[b]]$loss.vec)
   }
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
-
-#  print("n pareto:")
-#  print(n.pareto)
-  # Next loop from one side 
-  if(loss.params$n.blocks==1)
+  bb.time <- difftime(Sys.time() , start.time, units="secs") 
+  
+  ##############################################
+  # Next loop from one side and merge blocks:
+  ##############################################
+  if(loss.params$n.blocks == 1)
   {
     run.blocks <- c()
     new.X <- B[[b]]$pareto.opt.X
     new.c <- B[[b]]$pareto.opt.c
-  }
-  else
+  } else
     run.blocks <- 1:(loss.params$n.blocks-1)
   
   for(b in run.blocks)
   {
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
-      max.X <- max.X + B[[b2]]$max.X
-#    print(paste0("b=", b))
+      max.X <- max.X + B[[b2]]$max.X # this reduction can be applied on both sides 
     B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])
     for(i in 1:n.pareto[b])
-      B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)
+      B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
 #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.X <- c()
@@ -303,32 +312,12 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #      print(dim(new.X))
 #      print("Dim c:")
 #      print(dim(new.c))
-      new.X <- get_pareto_optimal_vecs(new.X)
+      new.X <- get_pareto_optimal_vecs(new.X) # could be costly to run again all new.X against themselves 
       if( length(new.X$pareto.inds)<=1 )
         print(paste0("Num pareto union: ", length(new.X$pareto.inds)))
       new.c <- new.c[new.X$pareto.inds,]
       new.X <- new.X$pareto.X
-#      for(k in 1:n.pareto[b+1])  # loop over possible pareto-optimal vectors in next layer  
-#      {
-#        if(n.pareto[b]==1)
-#          v = B[[b]]$pareto.opt.X + B[[b+1]]$pareto.opt.X[k,]
-#        else
-#          v = B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X[k,]
-#        if(is_pareto_optimal(v, new.X))
-#        {
-#          new.X <- rbind(new.X, v)
-#          if(n.pareto[b]==1 || n.pareto[b+1]==1 ) # update c: two lists
-#          {
-#            print("set new.c first:")
-#            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j], B[[b+1]]$pareto.opt.c[k]))
-#          }
-#          else
-#          {
-#            new.c <- rbind(new.c, c(B[[b]]$pareto.opt.c[j,], B[[b+1]]$pareto.opt.c[k]))
-#          }
-#        }
-#      }
-    }  # loop on good inds 
+    }  # loop on cur good inds 
   # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
@@ -370,6 +359,14 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       loss.vec[i] <- loss_PS(new.X[i,], loss.type, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
+
+  merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
+  
+  
+  print("bb time, merge time:")
+  print(bb.time)
+  print(merge.time)
+  
   if(L == 1)
   {
     print("i.min:")
@@ -377,133 +374,10 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
   }
   else
-    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec)))
+    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec), bb.time = bb.time, merge.time = merge.time))
 }  
     
 
-old_optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.params)
-{
-  # Compute pareto optimal vectors for each half and then merge them 
-  M1 <- floor(M/2)
-  M2 <- M-M1
-  
-  X1 <- optimize_C_branch_and_bound(X[1:M1,,], loss.type, loss.params)
-  X2 <- optimize_C_branch_and_bound(X[(M1+1):M,,], loss.type, loss.params)
-
-  print("Lengths:")
-  print(length(X1$loss.vec))
-  print(length(X2$loss.vec))
-  
-  
-  max.c <- rowMins(lip.tensor$X.loss.mat)
-  max.X <- rep(0, T)
-  for(i in 1:M)
-    max.X <- max.X + X[i,max.c[i],]    
-  L.upperbound <- loss_PS(max.X, loss.type, loss.params)
-  print("Greedy sol: ")
-  print(L.upperbound)
-  
-  
-  lip1 <- c()
-  lip2 <- c()
-  lip1$pos.mat <- rep(0, length(X1$loss.vec))
-  lip1$neg.mat <- rep(0, length(X1$loss.vec))
-  lip2$pos.mat <- rep(0, length(X2$loss.vec))
-  lip2$neg.mat <- rep(0, length(X2$loss.vec))
-  for(i in 1:length(X1$loss.vec))
-  {
-    lip1$pos.mat[i] <-  pmax(X1$pareto.opt.X[i,], 0) %*% lip.alpha
-    lip1$neg.mat[i] <- -pmin(X1$pareto.opt.X[i,], 0) %*% lip.alpha
-  }
-  for(i in 1:length(X2$loss.vec))
-  {
-    lip2$pos.mat[i] <-  pmax(X2$pareto.opt.X[i,], 0) %*% lip.alpha
-    lip2$neg.mat[i] <- -pmin(X2$pareto.opt.X[i,], 0) %*% lip.alpha
-  }
-  print("Upperbounds:")
-  L.lowerbound <- min(X1$opt.loss - max(lip2$pos.mat), X2$opt.loss - max(lip1$pos.mat))  
-  L.upperbound <- max(X1$opt.loss + max(lip2$neg.mat), X2$opt.loss + max(lip1$neg.mat))  
-  
-  # greedy   
-  L.upperbound <- loss_PS(X1$pareto.opt.X[which.min(X1$loss.vec),] + X2$pareto.opt.X[which.min(X2$loss.vec),], loss.type, loss.params)
-  
-  # Next exclude all vectors exceeding the upperbound
-  good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
-  good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
-#  good.inds1 <- 1:length(X1$loss.vec) # TEMP DEBUG!
-#  good.inds2 <- 1:length(X2$loss.vec) # TEMP DEBUG!
-
-  # Try another upperbound: 
-  X1$max.vec = colMaxs(X1$pareto.opt.X, value=TRUE) # take maximum value 
-  X2$max.vec = colMaxs(X2$pareto.opt.X, value=TRUE) # take maximum value 
-  X1$L.lowerbound.vec <- rep(0, length(X1$loss.vec))
-  for(i in 1:length(X1$loss.vec))
-    X1$L.lowerbound.vec[i] = loss_PS(X1$pareto.opt.X[i,] + X2$max.vec, loss.type, loss.params)
-  good.inds1 <- intersect(good.inds1, which(X1$L.lowerbound.vec <= L.upperbound))
-  
-  min.loss <- L.upperbound + 0.0000000000001
-  
-  print("good inds: ")
-  print(paste0("1:", length(good.inds1), " of ", length(X1$loss.vec)))
-  print(paste0("2:", length(good.inds2), " of ", length(X2$loss.vec)))
-  print(good.inds1)
-  print(good.inds2)
-  
-  new.good.inds1 <- good.inds1
-  new.good.inds2 <- good.inds2
-  
-  print(paste0("Saved: ",  1-length(good.inds1)*length(good.inds2) / (length(X1$loss.vec)*length(X1$loss.vec))))
-  for(i1 in good.inds1)
-  {
-    if(!(i1 %in% new.good.inds1)) # skip
-    {
-      print("SKIP i1!")
-      next
-    }
-    
-#    print("i1:")
-#    print(i1)
-    if(loss_PS(X1$pareto.opt.X[i1,] + X2$max.vec, loss.type, loss.params) > L.upperbound)
-    {
-      print("SKIP i1 with max!")
-      next
-    }
-#    print("loop over i2:")
-    
-    for(i2 in good.inds2)
-    {
-#      print("i1, i2:")
-#      print(i1)
-#      print(i2)
-      cur.loss <- loss_PS(X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,], loss.type, loss.params)
-      if(cur.loss < min.loss)
-      {
-        min.loss <- cur.loss
-        opt.X <- X1$pareto.opt.X[i1,] + X2$pareto.opt.X[i2,]
-        opt.c <- c(X1$pareto.opt.c[i1,], X2$pareto.opt.c[i2,])
-        
-        # update criteria for testing: 
-        L.upperbound <- min.loss
-        print("L Upper:")
-        print(L.upperbound)
-        print("L Upper + Lip:")
-        print(L.upperbound + max(lip2$pos.mat) )
-        print(L.upperbound + max(lip1$pos.mat) )
-        
-        new.good.inds1 <- which(X1$loss.vec - max(lip2$pos.mat) <= L.upperbound)
-        new.good.inds2 <- which(X2$loss.vec - max(lip1$pos.mat) <= L.upperbound)
-      }
-      if(!(i2 %in% new.good.inds2)) # skip
-      {
-        print("SKIP i2!")
-        next
-      }
-      
-    }
-  }
-  print("Now return:")
-  return(list(opt.X=opt.X, opt.c=opt.c, opt.loss = min.loss))      
-}
   
 
 

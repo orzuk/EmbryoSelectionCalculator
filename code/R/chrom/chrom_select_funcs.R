@@ -6,6 +6,9 @@ library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 
+Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
+
+
 chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,0.0441,
                                      0.0446,0.0440,0.0377,0.0353,0.0336,0.0298,0.0275,0.0265,0.0193,0.0213,0.0154,0.0168,0.0515)
 
@@ -367,10 +370,22 @@ get_pareto_optimal_vecs <- function(X.mat)
     return(list(pareto.X=X.mat, pareto.inds=1))
   is.pareto = rep(0,n)
   for(i in 1:n)
-    is.pareto[i] = is_pareto_optimal(X.mat[i,], X.mat) #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
+    is.pareto[i] = is_pareto_optimal_rcpp(X.mat[i,], X.mat) # new: use rcpp   #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
   pareto.inds <- which(as.logical(is.pareto))
   return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
 }
+
+# Unite two lists of pareto-optinal vectors. Keep only pareto optimals in the joint list 
+union_pareto_optimal_vecs <- function(X.mat1, X.mat2)
+{
+  n1 = dim(X.mat1)[1]
+  n2 = dim(X.mat2)[1]
+  if(is.null(n1)) # here X.mat is a vector - only one vector 
+    return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
+  
+}
+  
+  
 
 
 # Compute a vector of coordinate-wise lipschitz constants
