@@ -130,7 +130,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
 # print("Start optimize B&B") 
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   
-  par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
+  par.X <- get_pareto_optimal_vecs_rcpp(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
   cur.c <- t(t(par.X$pareto.inds))
   cur.X <- par.X$pareto.X
   L <- dim(cur.X)[1]
@@ -153,7 +153,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     if(L>1)
       new.X <- t(t(cur.X) + X[i,1,])  # may need to transpose here !
     else
-      new.X <- cur.X + X[i,1,]
+      new.X <- matrix(cur.X + X[i,1,], nrow=1)
     new.c <- cbind(cur.c, rep(1, L) )
 
     for(j in 1:L)  # loop over all vectors in the current stack      
@@ -164,18 +164,18 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
         else
           v = cur.X[j,]+X[i,c,]
         
-        R = is_pareto_optimal(v, new.X)
-        CPP = is_pareto_optimal_rcpp(v, new.X)
-        if(R != CPP)
-        {
-          print("Error! pareto optimal wrong!!!")
-          print(paste0("R=", R, " CPP=", CPP))
-          print("v=")
-          print(v)
-          print("Xmat=")
-          print(new.X)
-          print(zzz[234324])
-        }
+#        R = is_pareto_optimal(v, new.X)
+#        CPP = is_pareto_optimal_rcpp(v, new.X)
+#        if(R != CPP)
+#        {
+#          print("Error! pareto optimal wrong!!!")
+#          print(paste0("R=", R, " CPP=", CPP))
+#          print("v=")
+#          print(v)
+#          print("Xmat=")
+#          print(new.X)
+#          print(zzz[234324])
+#        }
         
         if(is_pareto_optimal_rcpp(v, new.X)) # new: use rcpp 
         {
@@ -290,7 +290,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
 #      print("Dim v:")
 #      print(dim(new.v))
-      new.v <- get_pareto_optimal_vecs(new.v)
+      new.v <- get_pareto_optimal_vecs_rcpp(new.v)
 #      print("Dim v pareto:")
 #      print(dim(new.v$pareto.X))
       new.X <- rbind(new.X, new.v$pareto.X)
@@ -312,7 +312,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #      print(dim(new.X))
 #      print("Dim c:")
 #      print(dim(new.c))
-      new.X <- get_pareto_optimal_vecs(new.X) # could be costly to run again all new.X against themselves 
+      new.X <- get_pareto_optimal_vecs_rcpp(new.X) # could be costly to run again all new.X against themselves 
       if( length(new.X$pareto.inds)<=1 )
         print(paste0("Num pareto union: ", length(new.X$pareto.inds)))
       new.c <- new.c[new.X$pareto.inds,]

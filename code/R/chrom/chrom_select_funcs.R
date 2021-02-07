@@ -375,13 +375,34 @@ get_pareto_optimal_vecs <- function(X.mat)
   return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
 }
 
-# Unite two lists of pareto-optinal vectors. Keep only pareto optimals in the joint list 
+# insert a new vector x if it is not dominated by any vector in X.mat. 
+# Exclude all vectors dominated by x 
+update_pareto_optimal_vecs <- function(X.mat, x)
+{
+  epsilon = 0.0000000000000000000000001
+  if(isempty(X.mat))
+    return(TRUE)
+  if(is.null(dim(X.mat)))
+    n.row <- 1
+  else
+    n.row <- dim(X.mat)[1]
+  
+  # next check if x dominates or is being dominated 
+  
+    return( min(rowMaxs(t(replicate(n.row, x))+epsilon - X.mat, value=TRUE)) >= 0 )
+}
+
+
+
+# Unite two lists of pareto-optinal vectors. Keep only pareto optimals in the joint list - 
 union_pareto_optimal_vecs <- function(X.mat1, X.mat2)
 {
   n1 = dim(X.mat1)[1]
   n2 = dim(X.mat2)[1]
   if(is.null(n1)) # here X.mat is a vector - only one vector 
     return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
+  
+  # here still need 
   
 }
   

@@ -28,6 +28,17 @@ Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix
 
 X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
 
+# New: test pareto optimal 
+X.mat <- X[1,,]
+
+par.R <- get_pareto_optimal_vecs(X.mat)  
+par.CPP <- get_pareto_optimal_vecs_rcpp(X.mat)  
+
+if(!all(par.R$pareto.inds == par.CPP$pareto.inds+1))
+  print("errr!!!! Pareto!!!")
+
+
+
 
 loss.C <- "disease"
 loss.params <- c()

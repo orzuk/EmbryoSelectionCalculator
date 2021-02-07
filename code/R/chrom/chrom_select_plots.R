@@ -63,6 +63,7 @@ plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*m
 lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
 legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
        c( "embryo", "chrom"), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+grid(NULL, NULL, lwd = 2)
 dev.off()
 #points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
 #legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), 
