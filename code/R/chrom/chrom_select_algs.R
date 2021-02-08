@@ -140,7 +140,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   L.vec <- rep(0, M)
   L.vec[1] = L
 #  print(paste("L=", L, " start loop"))
-  for(i in 2:M)
+  for(i in 2:M) # loop on block
   {
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
@@ -156,51 +156,42 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
       new.X <- matrix(cur.X + X[i,1,], nrow=1)
     new.c <- cbind(cur.c, rep(1, L) )
 
-    for(j in 1:L)  # loop over all vectors in the current stack      
-      for(c in 2:C)  # loop over possible vectors to add 
-      {
-        if(is.null(dim(cur.X)))
-          v = cur.X+X[i,c,]
-        else
-          v = cur.X[j,]+X[i,c,]
-        
-#        R = is_pareto_optimal(v, new.X)
-#        CPP = is_pareto_optimal_rcpp(v, new.X)
-#        if(R != CPP)
+    # new version: create sums and take union
+    for(c in 2:C)
+    {
+      temp.X <- t(t(cur.X) + X[i,c,])
+      union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X)
+      new.X <- union.X$pareto.X
+      new.c <- cbind(union.X$pareto.inds1,union.X$pareto.inds2) # need to modify here 
+    }
+      
+##  # old version below:     
+#    for(j in 1:L)  # loop over all vectors in the current stack      
+#      for(c in 2:C)  # loop over possible vectors to add 
+#      {
+#        if(is.null(dim(cur.X)))
+#          v = cur.X+X[i,c,]
+#        else
+#          v = cur.X[j,]+X[i,c,]
+#        
+#        if(is_pareto_optimal_rcpp(v, new.X)) # new: use rcpp 
 #        {
-#          print("Error! pareto optimal wrong!!!")
-#          print(paste0("R=", R, " CPP=", CPP))
-#          print("v=")
-#          print(v)
-#          print("Xmat=")
-#          print(new.X)
-#          print(zzz[234324])
+#          new.X <- rbind(new.X, v)
+#          if(is.null(dim(cur.c)))
+#            new.c <- rbind(new.c, c(cur.c[j], c) )
+#          else
+#            new.c <- rbind(new.c, c(cur.c[j,], c) )
 #        }
-        
-        if(is_pareto_optimal_rcpp(v, new.X)) # new: use rcpp 
-        {
-          new.X <- rbind(new.X, v)
-          if(is.null(dim(cur.c)))
-            new.c <- rbind(new.c, c(cur.c[j], c) )
-          else
-            new.c <- rbind(new.c, c(cur.c[j,], c) )
-        }
-      }
-#    if((i > 2) && (dim(new.X)[1]==dim(cur.X)[1])) # why should they be the same so often? 
-#    {
-#      print("Cur c:")
-#      print(cur.c)
-#      print("New c:")
-#      print(new.c)
-#      print(z[44])
-#    }
-    cur.X <- new.X
-    cur.c <- new.c
-    if(is.null(dim(new.X)[1]))
-      L.vec[i] = 1
-    else
-      L.vec[i] = dim(new.X)[1]  
+#      }
+#    cur.X <- new.X
+#    cur.c <- new.c
+#    if(is.null(dim(new.X)[1]))
+#      L.vec[i] = 1
+#    else
+#      L.vec[i] = dim(new.X)[1]  
+## End old version 
     
+        
     #    if(i == M)
 #      print(paste0("B&B C=", C, " i=", i, " out of ", M, " Stack Size:", dim(new.X)[1]))
   } # end loop on blocks 
