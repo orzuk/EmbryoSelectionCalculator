@@ -160,6 +160,7 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     for(c in 2:C)
     {
       temp.X <- t(t(cur.X) + X[i,c,])
+      temp.X <- get_pareto_optimal_vecs_rcpp(temp.X)
       union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X)
       new.X <- union.X$pareto.X
       new.c <- cbind(union.X$pareto.inds1,union.X$pareto.inds2) # need to modify here 
