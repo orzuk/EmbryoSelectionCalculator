@@ -22,6 +22,6 @@ For any questions, please contact Shai Carmi (shai.carmi@mail.huji.ac.il) or Or 
 
 ### Ref
 [1] Screening Human Embryos for Polygenic Traits has Limited Utility <br>
-E. Karavani, O. Zuk, D. Zeevi, G. Atzmon, N. Barzilai, N.C. Stefanis, A. Hatzimanolis, N. Smyrnis, D. Avramopoulos, L. Kruglyak, M. Lam, T. Lencz and S. Carmi , Cell 179(6), p. 1424-1435 (2019) <br>
-https://www.sciencedirect.com/science/article/pii/S0092867419312103  
+E. Karavani, O. Zuk, D. Zeevi, G. Atzmon, N. Barzilai, N.C. Stefanis, A. Hatzimanolis, N. Smyrnis, D. Avramopoulos, L. Kruglyak, M. Lam, T. Lencz and S. Carmi , Cell 179(6), p. 1424-1435 (2019)<br>
+https://www.sciencedirect.com/science/article/pii/S0092867419312103 
  
