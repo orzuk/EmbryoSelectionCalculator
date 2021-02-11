@@ -10,6 +10,7 @@ The repository accompanies the paper [1]. Please cite this paper if you're using
 clone the repository into a directory of your choice, and start an R session within this directory. 
 
 ## Usage example 
+After running:
 G <- gain.moments(10, 0.3, 'exact', 1)
 
 G$E.G will contain the expected gain (in units of standard deviations) in selecting the top quantitative trait out of n=10 embryos, for selection based on a polygenic score which explaines r2ps=0.3 of the trait's variance. 
