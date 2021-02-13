@@ -10,6 +10,7 @@ The repository accompanies the paper [1]. Please cite this paper if you're using
 clone the repository into a directory of your choice, and start an R session within this directory. 
 
 ## Usage example 
+After running:
 G <- gain.moments(10, 0.3, 'exact', 1)
 
 G$E.G will contain the expected gain (in units of standard deviations) in selecting the top quantitative trait out of n=10 embryos, for selection based on a polygenic score which explaines r2ps=0.3 of the trait's variance. 
@@ -22,6 +23,6 @@ For any questions, please contact Shai Carmi (shai.carmi@mail.huji.ac.il) or Or 
 
 ### Ref
 [1] Screening Human Embryos for Polygenic Traits has Limited Utility <br>
-E. Karavani, O. Zuk, D. Zeevi, G. Atzmon, N. Barzilai, N.C. Stefanis, A. Hatzimanolis, N. Smyrnis, D. Avramopoulos, L. Kruglyak, M. Lam, T. Lencz and S. Carmi , Cell 179(6), p. 1424-1435 (2019) <br>
-https://www.sciencedirect.com/science/article/pii/S0092867419312103  
+E. Karavani, O. Zuk, D. Zeevi, G. Atzmon, N. Barzilai, N.C. Stefanis, A. Hatzimanolis, N. Smyrnis, D. Avramopoulos, L. Kruglyak, M. Lam, T. Lencz and S. Carmi , Cell 179(6), p. 1424-1435 (2019)<br>
+https://www.sciencedirect.com/science/article/pii/S0092867419312103 
  
