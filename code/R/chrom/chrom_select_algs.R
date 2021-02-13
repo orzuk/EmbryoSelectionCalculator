@@ -161,9 +161,17 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     {
       temp.X <- t(t(cur.X) + X[i,c,])
       temp.X <- get_pareto_optimal_vecs_rcpp(temp.X)
-      union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X)
+      print("new X:")
+      print(new.X)
+      print(dim(new.X))
+      print("temp X:")
+      print(temp.X)
+      print(dim(temp.X))
+      
+      union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X$pareto.X)
       new.X <- union.X$pareto.X
-      new.c <- cbind(union.X$pareto.inds1,union.X$pareto.inds2) # need to modify here 
+      add.c <- cbind(cur.c, rep(c, L) )
+      new.c <- cbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
     }
       
 ##  # old version below:     
@@ -358,6 +366,13 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   print("bb time, merge time:")
   print(bb.time)
   print(merge.time)
+  
+  print("loss.vec:")
+  print(loss.vec)
+  print("new c:")
+  print(new.c)
+  print("i min:")
+  print(i.min)
   
   if(L == 1)
   {
