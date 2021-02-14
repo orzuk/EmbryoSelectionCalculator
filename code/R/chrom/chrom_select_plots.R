@@ -15,7 +15,7 @@ figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
 
 # SEt all parameters
 params <- c()
-params$M <- 12 # try full chromosomes  
+params$M <- 22 # try full chromosomes  
 params$c.vec <- 2:10
 params$T <- 5 # number of traits 
 params$iters <- 3
