@@ -98,6 +98,13 @@ compute_X_C_mat <- function(X, C.mat)
 
 
 # The loss 
+# Input: 
+# X.c - a vector of length C
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# loss - a scalar 
 loss_PS <- function(X.c, loss.type, loss.params)
 {
 #  X.c <- compute_X_C_mat(X, C)
@@ -117,6 +124,39 @@ loss_PS <- function(X.c, loss.type, loss.params)
   
   return(loss)
 }  
+
+
+
+# The loss for vectors 
+# Input: 
+# X.c - a vector of length C
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# loss - a scalar 
+loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
+{
+  n <- dim(X.c.mat)[1]
+  
+  #  X.c <- compute_X_C_mat(X, C)
+  if(loss.type == "quant")
+    loss.vec <- X.c.mat %*% loss.params$theta # scalar product 
+  
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))
+  {
+    loss.vec <- (X.c.mat*X.c.mat) %*% loss.params$theta    
+  }
+  
+  if(loss.type == 'disease')  # weighted disease probability 
+  {
+    z.K <- qnorm(loss.params$K)
+    loss.vec <- t(pnorm( (z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  )) %*% loss.params$theta 
+  }
+  return(loss.vec)
+}  
+
+
 
 
 

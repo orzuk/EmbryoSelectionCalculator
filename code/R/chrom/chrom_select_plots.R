@@ -55,9 +55,8 @@ if(run.plots)
 #    gain.embryo.vec[i] <- compute_gain_sim(params, loss.C, embryo.loss.params)$gain # embryo selection   multi.trait.gain.mean
 #    gain.mat[i] <- L$gain.mat
   }
-    
-# Plot: 
 
+# Plot: 
 jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
 plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.C, " loss"))
 lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 

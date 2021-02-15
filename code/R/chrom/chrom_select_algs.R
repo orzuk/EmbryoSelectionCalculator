@@ -236,7 +236,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
   
-  
+  print(paste0("b&b time (sec.): ", bb.time))
+
     
   ##############################################
   # Next loop from one side and merge blocks:
@@ -258,6 +259,29 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
+    
+    if(b == run.blocks) # last layer
+    {
+      min.loss <- 0
+      min.b <- 0
+      for(j in cur.good.inds)  # loop over all vectors in the current stack   
+      {
+        new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+        new.loss.vec <- loss_PS_mat(new.v, loss.type, loss.params)
+        i.min <- which.min(new.loss.vec)
+        new.min.loss <- min(new.loss.vec)
+        if(new.min.loss < min.loss)
+        {
+          min.loss <- new.min.loss
+          min.X <- new.v[i.min,]
+          min.c <- i.min  # need to modify here 
+        }
+      }
+      
+      return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
+    }
+    
+    
 #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.X <- c()
     new.c <- c()
@@ -267,6 +291,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       ctr <- ctr + 1
       new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       new.v <- get_pareto_optimal_vecs_rcpp(new.v)
+
+      # Next merge the two 
       new.X <- rbind(new.X, new.v$pareto.X)
       if( length(new.v$pareto.inds)<=1 )
       {
@@ -283,6 +309,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       new.c <- new.c[new.X$pareto.inds,]
       new.X <- new.X$pareto.X
     }  # loop on cur good inds 
+    print(paste0("Merge i=", b, "L=", dim(new.c)[1]))
   # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
@@ -304,6 +331,11 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     if(b+1 == loss.params$n.blocks)
       print(paste0("Finished B&B Mid. Stack Size:", dim(new.X)[1]))
   } # end loop on blocks 
+  
+  print("merge!")
+  merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
+  print(paste0("merge time (sec.):", merge.time))
+
 
   
   # Finally find the cost-minimizer out of the Pareto-optimal vectors
@@ -315,19 +347,18 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     loss.vec = loss_PS(new.X, loss.type, loss.params)
   }  else
   {
-    loss.vec <- rep(0, L)
-    for(i in 1:L)
-      loss.vec[i] <- loss_PS(new.X[i,], loss.type, loss.params)
+#    loss.vec <- rep(0, L)
+#    for(i in 1:L)
+#      loss.vec[i] <- loss_PS(new.X[i,], loss.type, loss.params)
+    loss.vec <- loss_PS_mat(new.X, loss.type, loss.params)
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
 
-  merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
+  loss.eval.time <- difftime(Sys.time() , start.time, units="secs") - bb.time - merge.time 
+  print(paste0("loss eval time (sec.):", loss.eval.time))
   
   
-  print("bb time, merge time:")
-  print(bb.time)
-  print(merge.time)
-  
+
 #  print("loss.vec:")
 #  print(loss.vec)
 #  print("new c:")
