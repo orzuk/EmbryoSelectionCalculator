@@ -262,7 +262,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     
     if(b == run.blocks) # last layer
     {
-      min.loss <- 0
+      min.loss <- 999999999999
       min.b <- 0
       for(j in cur.good.inds)  # loop over all vectors in the current stack   
       {
@@ -274,7 +274,14 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         {
           min.loss <- new.min.loss
           min.X <- new.v[i.min,]
-          min.c <- i.min  # need to modify here 
+          print(paste("j=", j))
+          print("dim new.c:")
+          print(dim(new.c))
+          print(paste0("i.min=", i.min))
+          print("Dim b+1 pareto:")
+          print(dim(B[[b+1]]$pareto.opt.c))
+          
+          min.c <- c(new.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
         }
       }
       
