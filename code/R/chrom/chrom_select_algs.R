@@ -238,7 +238,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   
   print(paste0("b&b time (sec.): ", bb.time))
 
-    
   ##############################################
   # Next loop from one side and merge blocks:
   ##############################################
@@ -260,7 +259,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
     
-    if(b == run.blocks) # last layer
+    if(b == loss.params$n.blocks-1) # last layer
     {
       min.loss <- 999999999999
       min.b <- 0
@@ -275,15 +274,16 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
           min.loss <- new.min.loss
           min.X <- new.v[i.min,]
           print(paste("j=", j))
-          print("dim new.c:")
-          print(dim(new.c))
+          print("dim cur.c:")
+          print(dim(B[[b]]$pareto.opt.c))
           print(paste0("i.min=", i.min))
           print("Dim b+1 pareto:")
           print(dim(B[[b+1]]$pareto.opt.c))
           
-          min.c <- c(new.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
+          min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
         }
       }
+      merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
       
       return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
     }
