@@ -50,11 +50,11 @@ List get_pareto_optimal_vecs_rcpp(NumericMatrix X_mat)
     NumericVector pareto_inds(n_pareto);
     for(i=0; i < n; i++)
         if(is_pareto[i])
-            pareto_inds[ctr++] = i;    
+            pareto_inds[ctr++] = i + 1; // 1-based indexing (R)    
 
     NumericMatrix X_pareto(n_pareto, X_mat.ncol());
     for(i=0; i<n_pareto; i++)
-        X_pareto.row(i) = X_mat.row(pareto_inds[i]);
+        X_pareto.row(i) = X_mat.row(pareto_inds[i]-1);
     List pareto;
 	pareto["pareto.inds"] = pareto_inds;
 	pareto["pareto.X"] = X_pareto;
@@ -113,16 +113,16 @@ List union_pareto_optimal_vecs_rcpp(NumericMatrix X_mat1, NumericMatrix X_mat2)
     NumericVector pareto_inds2(n_pareto2);
     for(i=0; i < n1; i++)
         if(is_pareto1[i])
-            pareto_inds1[ctr++] = i;    
+            pareto_inds1[ctr++] = i + 1;    // one-based indices (for R)
     ctr = 0; 
     for(i=0; i < n2; i++)
         if(is_pareto2[i])
-            pareto_inds2[ctr++] = i;    
+            pareto_inds2[ctr++] = i + 1;      // one-based indices (for R) 
     NumericMatrix X_pareto(n_pareto1+n_pareto2, X_mat1.ncol());  // get pareto-optimal vectors from both sets 
     for(i=0; i<n_pareto1; i++)
-        X_pareto.row(i) = X_mat1.row(pareto_inds1[i]);
+        X_pareto.row(i) = X_mat1.row(pareto_inds1[i]-1);
     for(i=0; i<n_pareto2; i++)
-        X_pareto.row(i+n_pareto1) = X_mat2.row(pareto_inds2[i]);
+        X_pareto.row(i+n_pareto1) = X_mat2.row(pareto_inds2[i]-1);
   
     List pareto;
 	pareto["pareto.inds1"] = pareto_inds1;
@@ -161,3 +161,85 @@ get_pareto_optimal_vecs <- function(X.mat)
   return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
 }
 **/
+
+
+
+// New: implement all B&B inside cpp to save time 
+// [[Rcpp::export]]
+List optimize_C_branch_and_bound_rcpp(NumericVector X, List loss_C, List loss_params)
+{
+    Dimension dim = X.attr("dim");
+    long M = dim[0];
+    long C = dim[1];
+    long T = dim[2];
+    List par_X = get_pareto_optimal_vecs_rcpp(X(0,_,_));  // Save only Pareto-optimal vectors . Needs fixing 
+    NumericMatrix cur_c = par_X["pareto_X"];
+}
+/** # R code:  A branch and bound algorithm for finding the X combination with minimal loss 
+optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
+{
+    
+
+  M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
+  
+  par.X <- get_pareto_optimal_vecs_rcpp(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
+  cur.c <- t(t(par.X$pareto.inds))
+  cur.X <- par.X$pareto.X
+  L <- dim(cur.X)[1]
+  if(is.null(L)) # one dimensional array 
+    L = 1
+  
+  L.vec <- rep(0, M)
+  L.vec[1] = L
+  for(i in 2:M) # loop on block
+  {
+    L <- dim(cur.X)[1]
+    if(is.null(L)) # one dimensional array 
+      L = 1
+    if(i == M)
+      print(paste0("B&B i=", i, " L=", L))
+    new.X <- c()
+    new.c <- c()
+    
+    # We know that the first vectors are pareto optimal
+    if(L>1)
+    {
+      new.X <- sweep(cur.X, 2, X[i,1,], "+")
+    } else
+      new.X <- matrix(cur.X + X[i,1,], nrow=1) # check that it doesn't flip x
+    new.c <- cbind(cur.c, rep(1, L) )
+
+    # new version: create sums and take union
+    for(c in 2:C)
+    {
+      temp.X <- sweep(cur.X, 2, X[i,c,], "+")
+      temp.X <- get_pareto_optimal_vecs_rcpp(temp.X)
+      union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X$pareto.X)
+      new.X <- union.X$pareto.X
+      add.c <- cbind(cur.c, rep(c, L) )
+      new.c <- rbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
+    }
+    cur.X <- new.X
+    cur.c <- new.c
+    if(is.null(dim(new.X)[1]))
+      L.vec[i] = 1
+    else
+      L.vec[i] = dim(new.X)[1]  
+        
+  } # end loop on blocks 
+  
+  # Finally find the cost-minimizer out of the Pareto-optimal vectors
+  L <- dim(cur.X)[1]
+  if(is.null(L)) # one dimensional array 
+  {
+    L = 1
+    loss.vec = loss_PS(cur.X, loss.C, loss.params)
+  }  else
+  {
+    loss.vec <- loss_PS_mat(cur.X, loss.C, loss.params)
+  }
+  i.min <- which.min(loss.vec) # find vector minimizing loss 
+  return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
+              loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X, pareto.opt.c = cur.c))
+}
+**/ 
