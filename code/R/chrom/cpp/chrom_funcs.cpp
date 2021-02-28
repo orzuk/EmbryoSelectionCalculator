@@ -111,17 +111,17 @@ List get_pareto_optimal_vecs_rcpp(NumericMatrix X_mat)
     long n = X_mat.nrow();
     long i, ctr=0;
     NumericVector is_pareto(n);
-    for(i=0; i < n; i++)
+    for(i = 0; i < n; i++)
         is_pareto[i] = is_pareto_optimal_rcpp(X_mat(i,_), X_mat); //   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
     long n_pareto = sum(is_pareto);
     NumericVector pareto_inds(n_pareto);
     for(i=0; i < n; i++)
         if(is_pareto[i])
-            pareto_inds[ctr++] = i + 1; // 1-based indexing (R)    
+            pareto_inds[ctr++] = i; // NO 1-based indexing (R)    
 
     NumericMatrix X_pareto(n_pareto, X_mat.ncol());
-    for(i=0; i<n_pareto; i++)
-        X_pareto.row(i) = X_mat.row(pareto_inds[i]-1);
+    for(i = 0; i < n_pareto; i++)
+        X_pareto.row(i) = X_mat.row(pareto_inds[i]);
     List pareto;
 	pareto["pareto.inds"] = pareto_inds;
 	pareto["pareto.X"] = X_pareto;
@@ -298,7 +298,7 @@ NumericVector loss_PS_mat_rcpp(NumericMatrix X_c_mat, string loss_type, List los
       Rcout << "w = " << w << endl;
       for(j = 0; j < T; j++) // apply normal cdf 
         w[j] = cdf(s, w[j]);
-      Rcout << "pnorm(w) = " << w << endl; 
+//      Rcout << "pnorm(w) = " << w << endl; 
 //      double u = my_inner_mult(    (z_K - X_c_mat(i,_)) * one_over_sqrt_h_ps, as<NumericVector>(loss_params["theta"]) ); //  / sqrt(1-as<double>(loss_params["h.ps"])), v ); 
 //      Rcout << "u = " << u << endl; 
       loss_vec[i] = my_inner_mult(w,  as<NumericVector>(loss_params["theta"])); // my_inner_mult(  (z_K - X_c_mat(i,_)) / sqrt(1-as<double>(loss_params["h.ps"])), as<NumericVector>(loss_params["theta"]) )); 
@@ -370,12 +370,13 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
 
 //    long T = X.n_slices; // dim[2];
     List par_X = get_pareto_optimal_vecs_rcpp(X0); // wrap(X.slice(0)));  // Save only Pareto-optimal vectors . Needs fixing 
-    Rcout << "Copy list outputs c:" << endl;
+    Rcout << "Copy list outputs c, par_X: " << as<NumericMatrix>(par_X["pareto.X"]) << endl 
+      << " Inds: " << as<NumericVector>(par_X["pareto.inds"]) << endl;
     NumericVector c_vec = as<NumericVector>(par_X["pareto.inds"]);
-    Rcout << "Copied vector!" << endl; 
+//    Rcout << "Copied vector!" << endl; 
     NumericMatrix cur_c(c_vec.length(), 1);
     cur_c(_,0) = c_vec; // par_X["pareto.inds"]);
-    Rcout << "Copy list outputs X:" << endl;
+//    Rcout << "Copy list outputs X:" << endl;
     NumericMatrix cur_X = as<NumericMatrix>(par_X["pareto.X"]);
     long L = cur_X.nrow();
 
@@ -388,8 +389,8 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     NumericMatrix new_c;
     for(i=1; i<M; i++) //  in 2:M) # loop on block
     {
-    //    Rcout << "Loop on blocks: " << i << endl;
         L = cur_X.nrow();
+        Rcout << "Loop on blocks: i=" << i << ", L=" << L << endl;
         new_X = cur_X;
         for(j = 0; j<L; j++)
             new_X(j,_) = new_X(j,_) + as<NumericVector>(wrap(X.subcube( span(i), span(0), span() )));  
@@ -413,11 +414,13 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
             L1 = as<NumericVector>(union_X["pareto.inds1"]).length();
             L2 = as<NumericVector>(union_X["pareto.inds2"]).length();
             new_X = as<NumericMatrix>(union_X["pareto.X"]);
-            Rcout << "add c=" << c << endl;
+//            Rcout << "add c=" << c << endl;
             NumericMatrix add_c(L, i+1);
             for(j = 0; j < i; j++)
                 add_c(_, j) = cur_c(_, j);
-            add_c(_, i) = NumericVector(L, 1); // add 1 to last column 
+            for(j = 0; j < L; j++)
+              add_c(j, i) = c+1; // NumericVector(L, 1); // add 1 to last column 
+
     //        Rcout << "New c=" << c << endl;
     //        Rcout << "L1=" << L1 << " L2=" << L2 << endl;
             cur_c = clone(new_c); // save previous
@@ -426,7 +429,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
 
     //        Rcout << "cur_c_dim_for_L1=" << cur_c.nrow() << " , " << cur_c.ncol() << endl;
     //        Rcout << "Pareto inds1: " << as<NumericVector>(union_X["pareto.inds1"]) << endl;
-    //        Rcout << "Pareto inds2: " << as<NumericVector>(union_X["pareto.inds2"]) << endl; // 1 based indices for R!! 
+    //        Rcout << "Pareto inds2: " << as<NumericVector>(union_X["pareto.inds2"]) << endl; // NO 1 based indices for R!! 
 
             for(j = 0; j < L1; j++)
                 new_c(j,_) = cur_c(as<NumericVector>(union_X["pareto.inds1"])[j],_); // self copying

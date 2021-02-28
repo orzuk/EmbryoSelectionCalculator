@@ -37,7 +37,6 @@ loss.params$eta <- 0 # negative L2 regularization
 loss.params$n.blocks <- 2
 loss.params$cpp <- TRUE # run in cpp 
 
-
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
 params$alg.str <- c("embryo", "branch_and_bound_lipschitz_middle") # ) "branch_and_bound") # "exact" # "branch_and_bound"
@@ -62,9 +61,7 @@ if(run.plots)
 
 
 overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
-
 print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))
-
 
 # Plot: 
 jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
@@ -80,8 +77,6 @@ dev.off()
 
 
 # points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
-
-
 
 # Temp debug one simulation: 
 X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))

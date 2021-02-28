@@ -410,14 +410,23 @@ is_pareto_optimal <- function(x, X.mat)
 # Extract only pareto-optimal vectors in a matrix
 get_pareto_optimal_vecs <- function(X.mat)
 {
-  n = dim(X.mat)[1]
-  if(is.null(n)) # here X.mat is a vector - only one vector 
-    return(list(pareto.X=X.mat, pareto.inds=1))
-  is.pareto = rep(0,n)
-  for(i in 1:n)
-    is.pareto[i] = is_pareto_optimal_rcpp(X.mat[i,], X.mat) # new: use rcpp   #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
-  pareto.inds <- which(as.logical(is.pareto))
-  return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
+  cpp.flag <- TRUE
+  if(cpp.flag)
+  {
+    par <- get_pareto_optimal_vecs_rcpp(X.mat)
+    par$pareto.inds <- par$pareto.inds + 1 # set one-based indices for R
+    return(par)
+  } else
+  {
+    n = dim(X.mat)[1]
+    if(is.null(n)) # here X.mat is a vector - only one vector 
+      return(list(pareto.X=X.mat, pareto.inds=1))
+    is.pareto = rep(0,n)
+    for(i in 1:n)
+      is.pareto[i] = is_pareto_optimal_rcpp(X.mat[i,], X.mat) # new: use rcpp   #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
+    pareto.inds <- which(as.logical(is.pareto))
+    return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
+  }
 }
 
 # insert a new vector x if it is not dominated by any vector in X.mat. 
@@ -448,6 +457,7 @@ union_pareto_optimal_vecs <- function(X.mat1, X.mat2)
     union.X <- union_pareto_optimal_vecs_rcpp(X.mat1, X.mat2)
     union.X$pareto.inds1 = union.X$pareto.inds1+1  # change to one-based indices for R 
     union.X$pareto.inds2 = union.X$pareto.inds2+1   
+    return(union.X)
   }
   else  
   {
