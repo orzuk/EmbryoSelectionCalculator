@@ -400,12 +400,6 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
             new_c(_, j) = cur_c(_, j);
         new_c(_,i) = NumericVector(L, 0); // add 0 to last column 
 
-//        if(i == 1)
-//        {
-//          Rcout << "new X: " << new_X << endl;
-//          Rcout << "new c: " << new_c << endl; 
-//        }
-
         NumericMatrix temp_X(L, i+1);
         List temp_X_list;
         List union_X;
@@ -441,12 +435,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
                 new_c(j,_) = cur_c(as<NumericVector>(union_X["pareto.inds1"])[j],_); // self copying
 //            Rcout << "Finished first loop: L1=" << L1 << " L2=" << L2 << endl;
             for(j = 0; j < L2; j++)
-            { 
-              NumericVector vv = as<NumericVector>(union_X["pareto.inds2"]);
-              NumericVector nnn = as<NumericVector>(union_X["pareto.inds2"])[j];
-              new_c(L1+j,_) = nnn; 
               new_c(L1+j,_) = add_c(as<NumericVector>(union_X["pareto.inds2"])[j],_); // assignment from the same variable! wtf?
-            }
     //        Rcout << "Finished second loop: L1=" << L1 << " L2=" << L2 << endl;    
         }
         cur_X = new_X;
@@ -460,8 +449,6 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     NumericVector loss_vec = loss_PS_mat_rcpp(cur_X, loss_type, loss_params);
   //  Rcout << "Calculated loss vec" << endl; 
     long i_min = which_min(loss_vec);  // find vector minimizing loss 
-
-
 
 //    (list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
 //             loss.vec = loss.vec, L.vec = L.vec, pareto.opt.X= cur.X, pareto.opt.c = cur.c))
