@@ -16,7 +16,7 @@ start.time <- Sys.time()
 
 # SEt all parameters
 params <- c()
-params$M <- 8 # try full chromosomes  
+params$M <- 15 # try full chromosomes  
 params$c.vec <- 2:5
 params$T <- 5 # number of traits 
 params$iters <- 10
@@ -34,7 +34,7 @@ loss.params$K <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease
 loss.params$h.ps <- rep(h.ps, params$T)
 loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
 loss.params$eta <- 0 # negative L2 regularization 
-loss.params$n.blocks <- 2
+loss.params$n.blocks <- 1
 loss.params$cpp <- TRUE # run in cpp 
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)

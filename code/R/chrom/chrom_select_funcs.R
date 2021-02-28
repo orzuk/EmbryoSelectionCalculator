@@ -151,11 +151,6 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
   if(loss.type == 'disease')  # weighted disease probability 
   {
     z.K <- qnorm(loss.params$K)
-    print(z.K)
-    print("normalized:")
-    print(t((z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  ))
-    print("pnorm:")
-    print(t(pnorm( (z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  ) ))
     loss.vec <- t(pnorm( (z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  )) %*% loss.params$theta 
   }
   return(loss.vec)

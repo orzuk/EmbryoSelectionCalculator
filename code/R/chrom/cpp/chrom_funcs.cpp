@@ -246,7 +246,7 @@ NumericVector loss_PS_mat_rcpp(NumericMatrix X_c_mat, string loss_type, List los
   long T = X_c_mat.ncol();
   long i, j;
 
-  Rcout << "Inside Compute loss PS mat" << endl; 
+//  Rcout << "Inside Compute loss PS mat" << endl; 
   NumericVector loss_vec(C);
   if(loss_type == "quant")
     loss_vec = my_mv_mult(X_c_mat, as<NumericVector>(loss_params["theta"])); // scalar product 
@@ -286,7 +286,7 @@ NumericVector loss_PS_mat_rcpp(NumericMatrix X_c_mat, string loss_type, List los
 
 //    Rcout << "K = " << K << endl; 
 //    double z_K = quantile(s, as<double>(loss_params["K"]));
-    Rcout << "Loop Compute loss PS mat Disease z_k = " << z_K << endl; 
+//    Rcout << "Loop Compute loss PS mat Disease z_k = " << z_K << endl; 
     for(i = 0; i < C; i++) // loop on chromosomes 
     {
       NumericVector r = (z_K - X_c_mat(i,_)); //  / sqrt(1-as<double>(loss_params["h.ps"]));
@@ -347,7 +347,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     long C = X.n_cols; // dim[1];
     long T = X.n_slices; // dim[2];
 
-    Rcout << "START B&B CPP: " << endl;
+//    Rcout << "START B&B CPP: " << endl;
 //    NumericMatrix X0(wrap(X(span(0), span(), span())));
     NumericMatrix X0(C, T); // X0(wrap(X.row(0)));
 
@@ -364,14 +364,14 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
 //    NumericMatrix X0(wrap(X.row(0)));
 
 
-    Rcout << "START get pareto CPP: " << endl;
-    Rcout << "X0 = " << endl << X0 << endl; 
-    Rcout << "X0 Dims: " << X0.nrow() << ", " << X0.ncol() << endl; 
+//    Rcout << "START get pareto CPP: " << endl;
+//    Rcout << "X0 = " << endl << X0 << endl; 
+//    Rcout << "X0 Dims: " << X0.nrow() << ", " << X0.ncol() << endl; 
 
 //    long T = X.n_slices; // dim[2];
     List par_X = get_pareto_optimal_vecs_rcpp(X0); // wrap(X.slice(0)));  // Save only Pareto-optimal vectors . Needs fixing 
-    Rcout << "Copy list outputs c, par_X: " << as<NumericMatrix>(par_X["pareto.X"]) << endl 
-      << " Inds: " << as<NumericVector>(par_X["pareto.inds"]) << endl;
+//    Rcout << "Copy list outputs c, par_X: " << as<NumericMatrix>(par_X["pareto.X"]) << endl 
+//      << " Inds: " << as<NumericVector>(par_X["pareto.inds"]) << endl;
     NumericVector c_vec = as<NumericVector>(par_X["pareto.inds"]);
 //    Rcout << "Copied vector!" << endl; 
     NumericMatrix cur_c(c_vec.length(), 1);
@@ -380,8 +380,8 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     NumericMatrix cur_X = as<NumericMatrix>(par_X["pareto.X"]);
     long L = cur_X.nrow();
 
-    Rcout << "Compute pareto, cur.c dims: " << cur_c.nrow() << endl; 
-    Rcout << "Compute pareto, cur.X dims: " << cur_X.nrow() << ", " << cur_X.ncol() << endl; 
+//    Rcout << "Compute pareto, cur.c dims: " << cur_c.nrow() << endl; 
+//    Rcout << "Compute pareto, cur.X dims: " << cur_X.nrow() << ", " << cur_X.ncol() << endl; 
 
     NumericVector L_vec(M); // vector of zeros 
     L_vec[0] = L;
@@ -391,7 +391,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     {
         L = cur_X.nrow();
         Rcout << "Loop on blocks: i=" << i << ", L=" << L << endl;
-        new_X = cur_X;
+        new_X = clone(cur_X);
         for(j = 0; j<L; j++)
             new_X(j,_) = new_X(j,_) + as<NumericVector>(wrap(X.subcube( span(i), span(0), span() )));  
     //    Rcout << "Copied X tensor blocks: " << i << endl;
@@ -400,11 +400,11 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
             new_c(_, j) = cur_c(_, j);
         new_c(_,i) = NumericVector(L, 0); // add 0 to last column 
 
-        if(i == 1)
-        {
-          Rcout << "new X: " << new_X << endl;
-          Rcout << "new c: " << new_c << endl; 
-        }
+//        if(i == 1)
+//        {
+//          Rcout << "new X: " << new_X << endl;
+//          Rcout << "new c: " << new_c << endl; 
+//        }
 
         NumericMatrix temp_X(L, i+1);
         List temp_X_list;
@@ -412,7 +412,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         for(c = 1; c < C; c++) // next add other vectors 
         {
     //        Rcout << "Copied X tensor blocks: c=" << c << endl;
-            temp_X = cur_X; 
+            temp_X = clone(cur_X); 
             for(j = 0; j < L; j++)
                 temp_X(j,_) = temp_X(j,_)  + as<NumericVector>(wrap(X.subcube( span(i), span(c), span() )));  
             temp_X_list = get_pareto_optimal_vecs_rcpp(temp_X);
@@ -439,7 +439,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
 
             for(j = 0; j < L1; j++)
                 new_c(j,_) = cur_c(as<NumericVector>(union_X["pareto.inds1"])[j],_); // self copying
-            Rcout << "Finished first loop: L1=" << L1 << " L2=" << L2 << endl;
+//            Rcout << "Finished first loop: L1=" << L1 << " L2=" << L2 << endl;
             for(j = 0; j < L2; j++)
             { 
               NumericVector vv = as<NumericVector>(union_X["pareto.inds2"]);
@@ -454,11 +454,11 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         L_vec[i] = new_X.nrow();          
     } // end loop on blocks 
 
-    Rcout << "Finished big loop" << endl; 
+ //   Rcout << "Finished big loop" << endl; 
     // Finally find the cost-minimizer out of the Pareto-optimal vectors
     L = cur_X.nrow();
     NumericVector loss_vec = loss_PS_mat_rcpp(cur_X, loss_type, loss_params);
-    Rcout << "Calculated loss vec" << endl; 
+  //  Rcout << "Calculated loss vec" << endl; 
     long i_min = which_min(loss_vec);  // find vector minimizing loss 
 
 

@@ -131,11 +131,14 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
   
   if(!("cpp" %in% names(loss.params)))  
     loss.params$cpp <- FALSE  # default: run in R  
-  if(loss.params$cpp) # new: run in cpp 
+  if(loss.params$cpp) # new: run in cpp
+  {
+    print("Start optimize B&B CPP") 
     return(optimize_C_branch_and_bound_rcpp(X, loss.type, loss.params))
+  }
   
   
-  print("Start optimize B&B in R") 
+#  print("Start optimize B&B in R") 
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   
   par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
@@ -155,10 +158,8 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     if(is.null(L)) # one dimensional array 
       L = 1
 #    if(i == M)
-      print(paste0("B&B i=", i, " L=", L))
-    new.X <- c()
-    new.c <- c()
-    
+#      print(paste0("B&B i=", i, " L=", L))
+
     # We know that the first vectors are pareto optimal
     if(L>1)
     {
@@ -167,14 +168,6 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
       new.X <- matrix(cur.X + X[i,1,], nrow=1) # check that it doesn't flip x
     new.c <- cbind(cur.c, rep(1, L) )
 
-    if(i == 2) # First 
-    {
-      print("new X:")
-      print(new.X)
-      print("new.c:")
-      print(new.c)
-    }
-    
     # new version: create sums and take union
     for(c in 2:C)
     {
@@ -253,7 +246,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
   
-  print(paste0("b&b time (sec.): ", bb.time))
+  print(paste0("cpp=", loss.params$cpp, " b&b time (sec.): ", bb.time))
 
   ##############################################
   # Next loop from one side and merge blocks:
