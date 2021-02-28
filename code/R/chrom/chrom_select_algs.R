@@ -13,7 +13,7 @@ source('chrom_select_funcs.R')
 
 # a function for optimizing the selection of chromosomes:
 # Run the optimization to find the optimal C:
-optimize_C_relax <- function(X, C.init, loss.C, loss.params)
+optimize_C_relax <- function(X, C.init, loss.type, loss.params)
 {
   print("Start optimize relax")
   M = dim(X)[1]
@@ -45,7 +45,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
 
       
   loss.vec <- rep(0, loss.params$max.iters)
-  loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.C, loss.params)
+  loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.type, loss.params)
   delta.loss <- 999999
   mu.t <- loss.params$mu.init
   mu.t.vec <- rep(0, loss.params$max.iters)
@@ -57,7 +57,7 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
   {
     if(t%%50 == 0)
       print(paste("while t=", t))
-    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.C, loss.params) # move in minus gradient direction (minimization) 
+    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.type, loss.params) # move in minus gradient direction (minimization) 
     C.cur <- project_stochastic_matrix(C.next) # Project onto the simplex 
     if(loss.params$decay == "exp") # exponential decay
       mu.t <- mu.t * loss.params$beta  # update step size 
@@ -67,14 +67,14 @@ optimize_C_relax <- function(X, C.init, loss.C, loss.params)
     t <- t+1
     mu.t.vec[t] <- mu.t
 
-    loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.C, loss.params)
+    loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.type, loss.params)
     delta.loss <- loss.vec[t] - loss.vec[t-1]    
     # otherwise constant learning rate 
   }
   
   
   c.vec <- max.col(C.cur) # Convert to zero-one 
-  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
+  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t], 
@@ -107,7 +107,7 @@ pareto_P_block <- function(C, M, k, iters=1000)
 
 
 # Choose in a greedy manner the best X. Mininize loss   
-optimize_C_quant <- function(X, loss.C, loss.params)
+optimize_C_quant <- function(X, loss.type, loss.params)
 {
   M <- dim(X)[1]
   T <- dim(X)[3]
@@ -125,9 +125,15 @@ optimize_C_quant <- function(X, loss.C, loss.params)
 
 
 # A branch and bound algorithm for finding the X combination with minimal loss 
-optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
+optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 {
-# print("Start optimize B&B") 
+  if(!("cpp" %in% names(loss.params)))  
+    loss.params$cpp <- FALSE  # default: run in R  
+  if(loss.params$cpp) # new: run in cpp 
+    return(optimize_C_branch_and_bound_rcpp(X, loss.type, loss.params))
+  
+  
+  print("Start optimize B&B in R") 
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   
   par.X <- get_pareto_optimal_vecs_rcpp(X[1,,]) # Save only Pareto-optimal vectors . Needs fixing 
@@ -146,27 +152,25 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
     L <- dim(cur.X)[1]
     if(is.null(L)) # one dimensional array 
       L = 1
-    print(paste0("B&B i=", i, " L=", L))
+    if(i == M)
+      print(paste0("B&B i=", i, " L=", L))
     new.X <- c()
     new.c <- c()
     
-    # We know that the first vectors pareto optimal
+    # We know that the first vectors are pareto optimal
     if(L>1)
     {
-      new.X <- t(t(cur.X) + X[i,1,])  # may need to transpose here !
+      new.X <- sweep(cur.X, 2, X[i,1,], "+")
     } else
-      new.X <- matrix(cur.X + X[i,1,], nrow=1)
+      new.X <- matrix(cur.X + X[i,1,], nrow=1) # check that it doesn't flip x
     new.c <- cbind(cur.c, rep(1, L) )
 
     # new version: create sums and take union
     for(c in 2:C)
     {
-      temp.X <- t(t(cur.X) + X[i,c,])
+      temp.X <- sweep(cur.X, 2, X[i,c,], "+")
       temp.X <- get_pareto_optimal_vecs_rcpp(temp.X)
-#      print("new X:")
-#      print(new.X)
-#      print(dim(new.X))
-      union.X <- union_pareto_optimal_vecs_rcpp(new.X, temp.X$pareto.X)
+      union.X <- union_pareto_optimal_vecs(new.X, temp.X$pareto.X)
       new.X <- union.X$pareto.X
       add.c <- cbind(cur.c, rep(c, L) )
       new.c <- rbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
@@ -187,12 +191,15 @@ optimize_C_branch_and_bound <- function(X, loss.C, loss.params)
   if(is.null(L)) # one dimensional array 
   {
     L = 1
-    loss.vec = loss_PS(cur.X, loss.C, loss.params)
+    loss.vec = loss_PS(cur.X, loss.type, loss.params)
   }  else
   {
-    loss.vec <- rep(0, L)
-    for(i in 1:L)
-      loss.vec[i] <- loss_PS(cur.X[i,], loss.C, loss.params)
+#    loss.vec <- rep(0, L)
+#    for(i in 1:L)
+#      loss.vec[i] <- loss_PS(cur.X[i,], loss.type, loss.params)
+    loss.vec <- loss_PS_mat(cur.X, loss.type, loss.params)
+#    print("Max error:")
+#    print(max(abs(loss.vec-loss.vec2)))
   }
   i.min <- which.min(loss.vec) # find vector minimizing loss 
   return(list(opt.X = cur.X[i.min,], opt.c = cur.c[i.min,], opt.loss = min(loss.vec), 
@@ -258,6 +265,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
+    print("num cur good inds:")
+    print(length(cur.good.inds))
     
     if(b == loss.params$n.blocks-1) # last layer
     {
@@ -265,25 +274,38 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       min.b <- 0
       for(j in cur.good.inds)  # loop over all vectors in the current stack   
       {
-        new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+#        new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+#        new.v2 <- B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X 
+#        print("Err2: ")
+#        print(max(new.v-new.v2))
+#        new.v <- t(B[[b]]$pareto.opt.X[j,] + t(B[[b+1]]$pareto.opt.X))
+        new.v <- sweep( B[[b+1]]$pareto.opt.X, 2, B[[b]]$pareto.opt.X[j,], "+")
+
+#        print("Err3: ")
+#        print(max(new.v-new.v3))
+        
+        
         new.loss.vec <- loss_PS_mat(new.v, loss.type, loss.params)
         i.min <- which.min(new.loss.vec)
         new.min.loss <- min(new.loss.vec)
+        print("New min loss:")
+        print(new.min.loss)
         if(new.min.loss < min.loss)
         {
           min.loss <- new.min.loss
           min.X <- new.v[i.min,]
-          print(paste("j=", j))
-          print("dim cur.c:")
-          print(dim(B[[b]]$pareto.opt.c))
-          print(paste0("i.min=", i.min))
-          print("Dim b+1 pareto:")
-          print(dim(B[[b+1]]$pareto.opt.c))
+#          print(paste("j=", j))
+#          print("dim cur.c:")
+#          print(dim(B[[b]]$pareto.opt.c))
+#          print(paste0("i.min=", i.min))
+#          print("Dim b+1 pareto:")
+#          print(dim(B[[b+1]]$pareto.opt.c))
           
           min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
         }
       }
       merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
+      print(paste0("merge time (sec.):", merge.time))
       
       return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
     }
@@ -392,7 +414,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #
 # Input: 
 # X - tensor of polygenic scores 
-# loss.C - string signifying loss type
+# loss.type - string signifying loss type
 # loss.params - parameters of the loss function
 #
 # Output: 
@@ -400,7 +422,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 # opt.loss - 
 # .c.opt - optimal value of the loss 
 ###############################################################
-optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
+optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
 {
   if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
     loss.params$eta <- 0 
@@ -441,10 +463,10 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
   C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
 
   c.p.v <- compute_X_C_mat(X, C.mat)
-  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
+  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params)
   c.vec <- max.col(C.mat) # Convert to matrix and take max of each row 
 
-  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.C, loss.params)  # cost of the rounded solution 
+  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec)
 
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
@@ -453,7 +475,7 @@ optimize_C_stabilizing_exact <- function(X, loss.C, loss.params)
 
 
 # A wrapper function for all optimizations
-optimize_C_embryo <- function(X, loss.C, loss.params)
+optimize_C_embryo <- function(X, loss.type, loss.params)
 {
   C = dim(X)[2]
   loss.vec <- rep(0, C)
@@ -464,7 +486,7 @@ optimize_C_embryo <- function(X, loss.C, loss.params)
 #    print(i)
 #    print("X vec col:")
 #    print(X.block.sum[,i])
-    loss.vec[i] = loss_PS(X.block.sum[,i], loss.C, loss.params)  
+    loss.vec[i] = loss_PS(X.block.sum[,i], loss.type, loss.params)  
   }
   
   opt.c <- which.min(loss.vec)
@@ -482,34 +504,41 @@ optimize_C_embryo <- function(X, loss.C, loss.params)
 
 
 # A wrapper function for all optimizations
-optimize_C <- function(X, loss.C, loss.params, alg.str)
+optimize_C <- function(X, loss.type, loss.params, alg.str)
 {
   M <- dim(X)[1]; C <- dim(X)[2];  T <- dim(X)[3]
 
   if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
-    return(optimize_C_embryo(X, loss.C, loss.params))
+    return(optimize_C_embryo(X, loss.type, loss.params))
   
   
-  if(loss.C == "quant") # easy optimization for quantitative traits 
-    return(optimize_C_quant(X, loss.C, loss.params))
+  if(loss.type == "quant") # easy optimization for quantitative traits 
+    return(optimize_C_quant(X, loss.type, loss.params))
   if(alg.str == "relax")  # here we need to set init
-    return(optimize_C_relax(X, loss.params$C.init, loss.C, loss.params))  
-  if(loss.C == "stabilizing")
-    return(optimize_C_stabilizing_exact(X, loss.C, loss.params))
+    return(optimize_C_relax(X, loss.params$C.init, loss.type, loss.params))  
+  if(loss.type == "stabilizing")
+    return(optimize_C_stabilizing_exact(X, loss.type, loss.params))
   if(alg.str == "branch_and_bound")
-    return(optimize_C_branch_and_bound(X, loss.C, loss.params))
+    return(optimize_C_branch_and_bound(X, loss.type, loss.params))
   if(alg.str == "branch_and_bound_lipschitz")
-    return(optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params))
+    return(optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params))
   if(alg.str == "branch_and_bound_lipschitz_middle")
-    return(optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params))
+    return(optimize_C_branch_and_bound_lipschitz_middle(X, loss.type, loss.params))
 }  
   
 
 
 # Compute average gain using simulations 
-compute_gain_sim <- function(params, loss.C, loss.params)
+# Input: 
+# params - dimensions (M, C and T)
+# loss.type - cost function
+# loss.params - cost function parameters 
+compute_gain_sim <- function(params, loss.type, loss.params)
 {
-  n.algs <- length(params$alg.str)
+  if(!("do.checks" %in% names(loss.params)))   # negative L2 regularizer
+    loss.params$do.checks <- 0 
+  
+    n.algs <- length(params$alg.str)
   gain.vec <- rep(0, params$iters)
   gain.mat <- matrix(rep(0, params$iters*n.algs), nrow=params$iters)
   rand.vec <- rep(0, params$iters)
@@ -517,23 +546,35 @@ compute_gain_sim <- function(params, loss.C, loss.params)
   {
     print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$C, " ", params$T))
     X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-
     #    print("Solve:")
-    
     # New: loop on all methods (same X to reduce variance) 
     
     # Compute also score without selection: 
-    rand.vec[t] <- loss_PS(compute_X_c_vec(X, rep(1, params$M)), loss.C, loss.params)
+    rand.vec[t] <- loss_PS(compute_X_c_vec(X, rep(1, params$M)), loss.type, loss.params)
     for(a in 1:n.algs)
     {
-      sol <- optimize_C(X, loss.C, loss.params, params$alg.str[a])
-#    sol2 <- optimize_C(X[,1:2,], loss.C, loss.params, params$alg.str)
-#    if(sol$opt.loss > sol2$opt.loss)
-#      print("Error! Adding C increased error!")
-#    sol.e <- optimize_C(X, loss.C, loss.params, "embryo")
-#    if(sol$opt.loss > sol.e$opt.loss)
-#      print("Error! embryo selection has lower loss!")
-#    
+      sol <- optimize_C(X, loss.type, loss.params, params$alg.str[a])
+      if(loss.params$do.checks)
+      {
+        sol2 <- optimize_C(X[,1:2,], loss.type, loss.params, params$alg.str)
+        if(sol$opt.loss > sol2$opt.loss)
+              print("Error! Adding C increased error!")
+        sol.e <- optimize_C(X, loss.type, loss.params, "embryo")
+        if(sol$opt.loss > sol.e$opt.loss)
+              print("Error! embryo selection has lower loss!")
+        
+        if(params$alg.str[a] != "embryo")
+        {
+          sol.bb <- optimize_C_branch_and_bound(X, loss.type, loss.params)
+          if(abs(sol$opt.loss - sol.bb$opt.loss) > 0.000000001)
+            print("Error! bb has different loss!")
+          if(sol$opt.c != sol.bb$opt.c)
+            print("Error! bb has different c!")
+          if(max(abs(sol$opt.X - sol.bb$opt.X)) > 0.000000001)
+            print("Error! bb has different X!")
+        }
+      }
+      
 
     # Next compute average gain vs. random: 
       gain.mat[t,a] <- sol$opt.loss

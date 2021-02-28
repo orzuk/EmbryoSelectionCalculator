@@ -5,6 +5,8 @@ library(matrixcalc)
 library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
+library(BH)
+
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
 
@@ -129,16 +131,14 @@ loss_PS <- function(X.c, loss.type, loss.params)
 
 # The loss for vectors 
 # Input: 
-# X.c - a vector of length C
+# X.c.mat - a matrix with multiple vectors of length C
 # loss.type - what loss to compute 
 # loss.params - parameters of loss 
 #
 # Output: 
-# loss - a scalar 
+# loss.vec - a vector of losses for each row of X.c.mat  
 loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 {
-  n <- dim(X.c.mat)[1]
-  
   #  X.c <- compute_X_C_mat(X, C)
   if(loss.type == "quant")
     loss.vec <- X.c.mat %*% loss.params$theta # scalar product 
@@ -151,6 +151,11 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
   if(loss.type == 'disease')  # weighted disease probability 
   {
     z.K <- qnorm(loss.params$K)
+    print(z.K)
+    print("normalized:")
+    print(t((z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  ))
+    print("pnorm:")
+    print(t(pnorm( (z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  ) ))
     loss.vec <- t(pnorm( (z.K-t(X.c.mat))/sqrt(1-loss.params$h.ps)  )) %*% loss.params$theta 
   }
   return(loss.vec)
@@ -437,12 +442,22 @@ update_pareto_optimal_vecs <- function(X.mat, x)
 # Unite two lists of pareto-optinal vectors. Keep only pareto optimals in the joint list - 
 union_pareto_optimal_vecs <- function(X.mat1, X.mat2)
 {
-  n1 = dim(X.mat1)[1]
-  n2 = dim(X.mat2)[1]
-  if(is.null(n1)) # here X.mat is a vector - only one vector 
-    return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
+  cpp.flag <- TRUE 
+  if(cpp.flag)
+  {
+    union.X <- union_pareto_optimal_vecs_rcpp(X.mat1, X.mat2)
+    union.X$pareto.inds1 = union.X$pareto.inds1+1  # change to one-based indices for R 
+    union.X$pareto.inds2 = union.X$pareto.inds2+1   
+  }
+  else  
+  {
+    n1 = dim(X.mat1)[1]
+    n2 = dim(X.mat2)[1]
+    if(is.null(n1)) # here X.mat is a vector - only one vector 
+      return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
   
-  # here still need 
+    # here still need to implement
+  }
   
 }
   
