@@ -167,6 +167,14 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
       new.X <- matrix(cur.X + X[i,1,], nrow=1) # check that it doesn't flip x
     new.c <- cbind(cur.c, rep(1, L) )
 
+    if(i == 2) # First 
+    {
+      print("new X:")
+      print(new.X)
+      print("new.c:")
+      print(new.c)
+    }
+    
     # new version: create sums and take union
     for(c in 2:C)
     {
@@ -199,7 +207,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 #    loss.vec <- rep(0, L)
 #    for(i in 1:L)
 #      loss.vec[i] <- loss_PS(cur.X[i,], loss.type, loss.params)
-    loss.vec <- loss_PS_mat(cur.X, loss.type, loss.params)
+    loss.vec <- loss_PS_mat_rcpp(cur.X, loss.type, loss.params) # use cpp
 #    print("Max error:")
 #    print(max(abs(loss.vec-loss.vec2)))
   }

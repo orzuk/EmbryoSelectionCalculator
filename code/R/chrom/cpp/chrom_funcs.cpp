@@ -262,12 +262,12 @@ NumericVector loss_PS_mat_rcpp(NumericMatrix X_c_mat, string loss_type, List los
   
   if(loss_type == "disease")  // weighted disease probability 
   {
-      Rcout << "Inside Compute loss PS mat Disease" << endl; 
+//      Rcout << "Inside Compute loss PS mat Disease" << endl; 
 
     boost::math::normal s; 
     NumericVector z_K = clone(as<NumericVector>(loss_params["K"])); //  = as<double>(loss_params["K"]);
     NumericVector one_over_sqrt_h_ps = clone(as<NumericVector>(loss_params["h.ps"]));
-    Rcout << "Prevalences are: " << z_K << endl; 
+//    Rcout << "Prevalences are: " << z_K << endl; 
     for(i = 0; i < T; i++)  
     {
 //      Rcout << "Prev i = " << z_K[i] << endl; 
@@ -295,7 +295,7 @@ NumericVector loss_PS_mat_rcpp(NumericMatrix X_c_mat, string loss_type, List los
       NumericVector v = as<NumericVector>(loss_params["theta"]);
 //      Rcout << "v = " << v << endl;
       NumericVector w = r * one_over_sqrt_h_ps;
-      Rcout << "w = " << w << endl;
+//      Rcout << "w = " << w << endl;
       for(j = 0; j < T; j++) // apply normal cdf 
         w[j] = cdf(s, w[j]);
 //      Rcout << "pnorm(w) = " << w << endl; 
@@ -356,8 +356,8 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         for(j = 0; j < T; j++)
             X0(i,j) = X(0,i,j);
 
-    X.row(0).print(); 
-    Rcout << "printed 0 row" << endl; 
+//    X.row(0).print(); 
+//    Rcout << "printed 0 row" << endl; 
 //    mat M(wrap(X.row(0))); 
  //   Rcout << "Converted to matrix " << endl; 
   //  Rcout << M << endl; 
@@ -398,7 +398,13 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         new_c = NumericMatrix(L, i+1);
         for(j = 0; j<i; j++)    
             new_c(_, j) = cur_c(_, j);
-        new_c(_,i) = NumericVector(L, 1); // add 1 to last column 
+        new_c(_,i) = NumericVector(L, 0); // add 0 to last column 
+
+        if(i == 1)
+        {
+          Rcout << "new X: " << new_X << endl;
+          Rcout << "new c: " << new_c << endl; 
+        }
 
         NumericMatrix temp_X(L, i+1);
         List temp_X_list;
@@ -419,7 +425,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
             for(j = 0; j < i; j++)
                 add_c(_, j) = cur_c(_, j);
             for(j = 0; j < L; j++)
-              add_c(j, i) = c+1; // NumericVector(L, 1); // add 1 to last column 
+              add_c(j, i) = c; // NumericVector(L, 1); // add c to last column 
 
     //        Rcout << "New c=" << c << endl;
     //        Rcout << "L1=" << L1 << " L2=" << L2 << endl;
@@ -436,19 +442,12 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
             Rcout << "Finished first loop: L1=" << L1 << " L2=" << L2 << endl;
             for(j = 0; j < L2; j++)
             { 
-    //          Rcout << " Loop j=" << j << endl;
               NumericVector vv = as<NumericVector>(union_X["pareto.inds2"]);
-    //          Rcout << " Nooma j=" << j << endl;
               NumericVector nnn = as<NumericVector>(union_X["pareto.inds2"])[j];
-    //         Rcout << " Nooma2 j=" << j << " L1+j=" << j << endl;
-    //          Rcout << "new_c_dim_now=" << new_c.nrow() << " , " << new_c.ncol() << endl;
               new_c(L1+j,_) = nnn; 
-    //          Rcout << "new_c_dim_again=" << new_c.nrow() << " , " << new_c.ncol() << endl;
               new_c(L1+j,_) = add_c(as<NumericVector>(union_X["pareto.inds2"])[j],_); // assignment from the same variable! wtf?
-    //          Rcout << " Hey j=" << j << endl;
             }
-    //        Rcout << "Finished second loop: L1=" << L1 << " L2=" << L2 << endl;
-    
+    //        Rcout << "Finished second loop: L1=" << L1 << " L2=" << L2 << endl;    
         }
         cur_X = new_X;
         cur_c = new_c;
