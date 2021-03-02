@@ -127,7 +127,6 @@ optimize_C_quant <- function(X, loss.type, loss.params)
 # A branch and bound algorithm for finding the X combination with minimal loss 
 optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 {
-  print("Start optimize B&B") 
   
   if(!("cpp" %in% names(loss.params)))  
     loss.params$cpp <- FALSE  # default: run in R  
@@ -136,6 +135,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     print("Start optimize B&B CPP") 
     return(optimize_C_branch_and_bound_rcpp(X, loss.type, loss.params))
   }
+  print("Start optimize B&B R") 
   
   
 #  print("Start optimize B&B in R") 
@@ -158,7 +158,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     if(is.null(L)) # one dimensional array 
       L = 1
 #    if(i == M)
-#      print(paste0("B&B i=", i, " L=", L))
+      print(paste0("B&B i=", i, " L=", L))
 
     # We know that the first vectors are pareto optimal
     if(L>1)
@@ -172,8 +172,14 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     for(c in 2:C)
     {
       temp.X <- sweep(cur.X, 2, X[i,c,], "+")
-      temp.X <- get_pareto_optimal_vecs(temp.X)
-      union.X <- union_pareto_optimal_vecs(new.X, temp.X$pareto.X)
+#      ttt <- Sys.time()
+#      temp.X <- get_pareto_optimal_vecs(temp.X) # check which is time-consuming. No need to check! they're already pareto-optimal!
+#      get.time <- difftime(Sys.time() , ttt, units="secs") 
+#      print(paste0("get time: (sec.): ", get.time))
+      ttt <- Sys.time()
+      union.X <- union_pareto_optimal_vecs(new.X, temp.X) # $pareto.X)
+      union.time <- difftime(Sys.time() , ttt, units="secs") 
+      print(paste0("union time: (sec.): ", union.time))
       new.X <- union.X$pareto.X
       add.c <- cbind(cur.c, rep(c, L))
       new.c <- rbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
@@ -268,8 +274,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
-    print("num cur good inds:")
-    print(length(cur.good.inds))
+#    print("num cur good inds:")
+#    print(length(cur.good.inds))
     
     if(b == loss.params$n.blocks-1) # last layer
     {
@@ -291,8 +297,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         new.loss.vec <- loss_PS_mat(new.v, loss.type, loss.params)
         i.min <- which.min(new.loss.vec)
         new.min.loss <- min(new.loss.vec)
-        print("New min loss:")
-        print(new.min.loss)
+#        print("New min loss:")
+#        print(new.min.loss)
         if(new.min.loss < min.loss)
         {
           min.loss <- new.min.loss
@@ -308,7 +314,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
         }
       }
       merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
-      print(paste0("merge time (sec.):", merge.time))
+#      print(paste0("merge time (sec.):", merge.time))
       
       return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
     }
@@ -540,15 +546,24 @@ compute_gain_sim <- function(params, loss.type, loss.params)
 {
   if(!("do.checks" %in% names(loss.params)))   # negative L2 regularizer
     loss.params$do.checks <- 0 
-  
-    n.algs <- length(params$alg.str)
+                                                                                           
+  n.algs <- length(params$alg.str)
   gain.vec <- rep(0, params$iters)
   gain.mat <- matrix(rep(0, params$iters*n.algs), nrow=params$iters)
   rand.vec <- rep(0, params$iters)
+  
+  
+  
   for (t in 1:params$iters)
   {
+    # New: Set Covariance matrices inside function for each iteration ! 
+    Sigma <- 0.5*diag(params$T) + matrix(0.5, nrow=params$T, ncol=params$T)   # trait-correlations matrix 
+    df <- params$T # For wishart distribution
+    Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
+    Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
+    
     print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$C, " ", params$T))
-    X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+    X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, params$sigma.blocks, rep(0.5, k))
     #    print("Solve:")
     # New: loop on all methods (same X to reduce variance) 
     
