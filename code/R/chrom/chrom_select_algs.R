@@ -167,11 +167,14 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     } else
       new.X <- matrix(cur.X + X[i,1,], nrow=1) # check that it doesn't flip x
     new.c <- cbind(cur.c, rep(1, L) )
-
     # new version: create sums and take union
     for(c in 2:C)
     {
-      temp.X <- sweep(cur.X, 2, X[i,c,], "+")
+      if(L>1)
+        temp.X <- sweep(cur.X, 2, X[i,c,], "+")
+      else
+        temp.X <- cur.X  + X[i,c,]
+
 #      ttt <- Sys.time()
 #      temp.X <- get_pareto_optimal_vecs(temp.X) # check which is time-consuming. No need to check! they're already pareto-optimal!
 #      get.time <- difftime(Sys.time() , ttt, units="secs") 
@@ -180,6 +183,20 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
       union.X <- union_pareto_optimal_vecs(new.X, temp.X) # $pareto.X)
       union.time <- difftime(Sys.time() , ttt, units="secs") 
       print(paste0("union time: (sec.): ", union.time))
+      print(paste0("Num pareto1: ", length(union.X$pareto.inds1), " Num pareto2: ", length(union.X$pareto.inds2)))
+#      ttt <- Sys.time()
+#      union.X <- union_pareto_optimal_vecs(new.X, temp.X, 2) # $pareto.X)
+#      union.time <- difftime(Sys.time() , ttt, units="secs") 
+#      print(paste0("union time2: (sec.): ", union.time))
+#      print(paste0("Num pareto1: ", length(union.X$pareto.inds1), " Num pareto2: ", length(union.X$pareto.inds2)))
+#      ttt <- Sys.time()
+#      union.X <- union_pareto_optimal_vecs(new.X, temp.X, FALSE) # new: run in C!
+#      union.time.ecr <- difftime(Sys.time() , ttt, units="secs") 
+#      print(paste0("union time ecr: (sec.): ", union.time.ecr))
+#      print(paste0("Num pareto1: ", length(union.X$pareto.inds1), " Num pareto2: ", length(union.X$pareto.inds2)))
+      
+      
+      
       new.X <- union.X$pareto.X
       add.c <- cbind(cur.c, rep(c, L))
       new.c <- rbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
@@ -274,47 +291,26 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
-#    print("num cur good inds:")
-#    print(length(cur.good.inds))
-    
+
     if(b == loss.params$n.blocks-1) # last layer
     {
       min.loss <- 999999999999
       min.b <- 0
       for(j in cur.good.inds)  # loop over all vectors in the current stack   
       {
-#        new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
-#        new.v2 <- B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X 
-#        print("Err2: ")
-#        print(max(new.v-new.v2))
-#        new.v <- t(B[[b]]$pareto.opt.X[j,] + t(B[[b+1]]$pareto.opt.X))
         new.v <- sweep( B[[b+1]]$pareto.opt.X, 2, B[[b]]$pareto.opt.X[j,], "+")
-
-#        print("Err3: ")
-#        print(max(new.v-new.v3))
-        
-        
-        new.loss.vec <- loss_PS_mat(new.v, loss.type, loss.params)
-        i.min <- which.min(new.loss.vec)
+        new.loss.vec <- loss_PS_mat_rcpp(new.v, loss.type, loss.params) # use cpp for faster loss computation 
         new.min.loss <- min(new.loss.vec)
-#        print("New min loss:")
-#        print(new.min.loss)
         if(new.min.loss < min.loss)
         {
           min.loss <- new.min.loss
+          i.min <- which.min(new.loss.vec)
           min.X <- new.v[i.min,]
-#          print(paste("j=", j))
-#          print("dim cur.c:")
-#          print(dim(B[[b]]$pareto.opt.c))
-#          print(paste0("i.min=", i.min))
-#          print("Dim b+1 pareto:")
-#          print(dim(B[[b+1]]$pareto.opt.c))
-          
           min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
         }
       }
       merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
-#      print(paste0("merge time (sec.):", merge.time))
+      print(paste0("merge time (sec.):", merge.time))
       
       return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
     }

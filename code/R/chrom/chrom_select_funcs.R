@@ -405,7 +405,7 @@ is_pareto_optimal <- function(x, X.mat)
 # Extract only pareto-optimal vectors in a matrix
 get_pareto_optimal_vecs <- function(X.mat)
 {
-  cpp.flag <- TRUE
+  cpp.flag <- FALSE
   if(cpp.flag)
   {
     par <- get_pareto_optimal_vecs_rcpp(X.mat)
@@ -413,13 +413,14 @@ get_pareto_optimal_vecs <- function(X.mat)
     return(par)
   } else
   {
-    n = dim(X.mat)[1]
-    if(is.null(n)) # here X.mat is a vector - only one vector 
-      return(list(pareto.X=X.mat, pareto.inds=1))
-    is.pareto = rep(0,n)
-    for(i in 1:n)
-      is.pareto[i] = is_pareto_optimal_rcpp(X.mat[i,], X.mat) # new: use rcpp   #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
-    pareto.inds <- which(as.logical(is.pareto))
+    pareto.inds <- which.nondominated(-t(X.mat)) # new: use ecr package !! 
+#    n = dim(X.mat)[1] # internal implementation 
+#    if(is.null(n)) # here X.mat is a vector - only one vector 
+#      return(list(pareto.X=X.mat, pareto.inds=1))
+#    is.pareto = rep(0,n)
+#    for(i in 1:n)
+#      is.pareto[i] = is_pareto_optimal_rcpp(X.mat[i,], X.mat) # new: use rcpp   #   max(colMins(t(replicate(n, X[i,]))+epsilon - X, value=TRUE)) >= 0
+#    pareto.inds <- which(as.logical(is.pareto))
     return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
   }
 }
@@ -444,25 +445,39 @@ update_pareto_optimal_vecs <- function(X.mat, x)
 
 
 # Unite two lists of pareto-optinal vectors. Keep only pareto optimals in the joint list - 
-union_pareto_optimal_vecs <- function(X.mat1, X.mat2)
+union_pareto_optimal_vecs <- function(X.mat1, X.mat2, cpp.flag = TRUE)
 {
-  cpp.flag <- TRUE 
+  T <- dim(X.mat1)
+  if(is.null(T))
+    T <- 1
+  else
+    T <- T[2]
   if(cpp.flag)
   {
-    union.X <- union_pareto_optimal_vecs_rcpp(X.mat1, X.mat2)
+    union.X <- union_pareto_optimal_vecs_rcpp(matrix(X.mat1, ncol=T), matrix(X.mat2, ncol=T))
     union.X$pareto.inds1 = union.X$pareto.inds1+1  # change to one-based indices for R 
     union.X$pareto.inds2 = union.X$pareto.inds2+1   
-    return(union.X)
   }
   else  
   {
-    n1 = dim(X.mat1)[1]
-    n2 = dim(X.mat2)[1]
-    if(is.null(n1)) # here X.mat is a vector - only one vector 
-      return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
+    X.mat1 <- matrix(X.mat1, ncol=T)
+    X.mat2 <- matrix(X.mat2, ncol=T)
+    L1 <- dim(X.mat1)[1]
+    L2 <- dim(X.mat2)[1]
+    # New: unite the two and use the ecr package
+    union.X <- c()
+    pareto.inds <- which.nondominated(-t(rbind(X.mat1, X.mat2)))
+    union.X$pareto.inds1 <- pareto.inds[pareto.inds <= L1]
+    union.X$pareto.inds2 <- pareto.inds[pareto.inds > L1] - L1
+    union.X$pareto.X <- rbind(X.mat1[union.X$pareto.inds1,], X.mat2[union.X$pareto.inds2,])
+#    n1 = dim(X.mat1)[1]
+#    n2 = dim(X.mat2)[1]
+#    if(is.null(n1)) # here X.mat is a vector - only one vector 
+#      return(list(pareto.X=X.mat2, pareto.inds=2:(n2+1)))
   
     # here still need to implement
   }
+  return(union.X)
   
 }
   

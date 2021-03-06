@@ -5,6 +5,7 @@ library(rWishart)
 library(matrixcalc)
 library(matrixNormal)
 library(Rfast)
+library(ecr)
 setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") 
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
@@ -17,9 +18,9 @@ start.time <- Sys.time()
 # SEt all parameters
 params <- c()
 params$M <- 22 # try full chromosomes  
-params$c.vec <- 2:9
+params$c.vec <- 2:10
 params$T <- 5 # number of traits 
-params$iters <- 5
+params$iters <- 10
 df <- 5 # For wishart distribution
 
 h.ps <- 0.3  # variane explained by the polygenic score 
@@ -64,14 +65,17 @@ if(run.plots)
 overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
 print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))
 
+# Save results to file: 
+save(params, loss.type, loss.params, gain.mat, overall.plot.time, file="disease_gain_chrom.Rdata")
+
 # Plot: 
-####jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
+jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
 plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
 lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
 legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
        c( "embryo", "chrom"), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 grid(NULL, NULL, lwd = 2)
-####dev.off()
+dev.off()
 #points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
 #legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), 
 #       c( "embryo", "chrom", "bb"), col=c("black", "red", "blue"), pch=c(4,1,3), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
@@ -89,4 +93,14 @@ grid(NULL, NULL, lwd = 2)
 
 ##loss_PS_mat(X[1,,], loss.type, loss.params)
 ##loss_PS_mat_rcpp(X[1,,], loss.type, loss.params)
+
+#M = matrix(rnorm(100000), ncol=5)
+#t = Sys.time(); P = get_pareto_optimal_vecs_rcpp(M); 
+#get.pareto.time <- difftime(Sys.time() , t, units="secs") 
+#print(paste0("Num pareto: ", length(P$pareto.inds), ", get pareto time: (sec.): ", get.pareto.time))
+#t = Sys.time(); P.ecr = get_pareto_optimal_vecs(M)
+#get.pareto.ecr.time <- difftime(Sys.time() , t, units="secs") 
+#print(paste0("Num pareto ecr: ", length(P.ecr$pareto.inds), ", get pareto ecr time: (sec.): ", get.pareto.ecr.time))
+
+
 

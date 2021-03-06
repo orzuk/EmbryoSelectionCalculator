@@ -56,6 +56,15 @@ using namespace boost; // for boost mathematical packages
 
 // cpp code: 
 
+// Order a vector to get the indices 
+// [[Rcpp::export]]
+IntegerVector sort_index(NumericVector v) 
+{
+  NumericVector v_sorted = clone(v).sort();
+  return match(v_sorted, v)-1;  // 1-based to 0-based indices !! 
+}
+
+
 // Inner product of two vectors  
 // [[Rcpp::export]]
 double my_inner_mult(NumericVector U, NumericVector V)
@@ -82,6 +91,7 @@ NumericVector my_mv_mult(NumericMatrix A, NumericVector V)
 	}
 	return r;
 }
+
 
 
 // Check if vector x is pareto-optimal among vectors in X_mat
@@ -170,27 +180,126 @@ NumericMatrix update_pareto_optimal_vecs_rcpp(NumericVector x, NumericMatrix X_m
 }
 
 
+
+// Check for two vectors if one dominates the other 
+// Return: 
+//  1:  x > y
+// -1:  x < y
+//  0: None is dominating 
+// [[Rcpp::export]]
+long is_dominating(NumericVector x, NumericVector y)
+{
+  long domin = x[0] > y[0]; // take first 
+  for(long i = 1; i < x.length(); i++)
+  {
+    if((x[i] > y[i]) != domin) // non is dominated 
+      return(0); 
+  }
+  
+  return(2*domin-1); // 1 -> 1, 0 -> -1 
+}
+
+
+
 // Unite two lists of pareto-optinal vectors (Guaranteed!). Keep only pareto optimals in the joint list 
 // [[Rcpp::export]]
 List union_pareto_optimal_vecs_rcpp(NumericMatrix X_mat1, NumericMatrix X_mat2)
+{
+//    double epsilon_minus = 0.0000000000000000000000001;    
+
+    long n1 = X_mat1.nrow();
+    long n2 = X_mat2.nrow();
+    long T = X_mat1.ncol(); // dimension 
+    NumericVector is_pareto1(n1, 1);
+    NumericVector is_pareto2(n2, 1); // initialize to "TRUE"
+    long i, j, k; 
+    long ctr = 0; // place1 = 0, place2 = 0;
+    long which_dom, is_dom; // , which_dom2
+
+    // New implementation! use sequential stopping 
+    for(i = 0; i < n1; i++) // change to inline to save time? 
+    {
+        for(j = 0; j < n2; j++)
+        {
+          if(!is_pareto2[j]) // dominated vector 
+            continue;
+//          which_dom2 = is_dominating(X_mat1(i,_), X_mat2(j,_)); 
+          is_dom = 1;
+          which_dom = X_mat1(i,0) > X_mat2(j,0); // faster inline to avoid function call 
+          for(k = 1; k < T; k++)
+            if(which_dom != (X_mat1(i,k) > X_mat2(j,k)))
+            {
+              is_dom = 0; break;
+            }
+          which_dom = is_dom * (2*which_dom-1); // 1, 0 or -1  
+
+          if(which_dom == 1)
+            is_pareto2[j] = FALSE;
+          else
+            if(which_dom == -1)
+            {
+              is_pareto1[i] = FALSE;
+              break;
+            }
+        }
+    }    
+
+    long n_pareto1 = sum(is_pareto1); // include new vector 
+    long n_pareto2 = sum(is_pareto2); // include new vector 
+
+    NumericVector pareto_inds1(n_pareto1);
+    NumericVector pareto_inds2(n_pareto2);
+    for(i=0; i < n1; i++)
+        if(is_pareto1[i])
+            pareto_inds1[ctr++] = i;    // NO one-based indices (for R)
+    ctr = 0; 
+    for(i=0; i < n2; i++)
+        if(is_pareto2[i])
+            pareto_inds2[ctr++] = i;      // NO one-based indices (for R) 
+    NumericMatrix X_pareto(n_pareto1+n_pareto2, X_mat1.ncol());  // get pareto-optimal vectors from both sets 
+    for(i=0; i<n_pareto1; i++)
+        X_pareto.row(i) = X_mat1.row(pareto_inds1[i]);
+    for(i=0; i<n_pareto2; i++)
+        X_pareto.row(i+n_pareto1) = X_mat2.row(pareto_inds2[i]);
+  
+    List pareto;
+	pareto["pareto.inds1"] = pareto_inds1;
+	pareto["pareto.inds2"] = pareto_inds2;
+	pareto["pareto.X"] = X_pareto;
+ 	return pareto; 
+}
+
+
+
+// Unite two lists of pareto-optinal vectors (Guaranteed!). Keep only pareto optimals in the joint list 
+// [[Rcpp::export]]
+List union_pareto_optimal_vecs_rcpp_old(NumericMatrix X_mat1, NumericMatrix X_mat2)
 {
     double epsilon_minus = 0.0000000000000000000000001;    
 
     long n1 = X_mat1.nrow();
     long n2 = X_mat2.nrow();
-    NumericVector is_pareto1(n1);
-    NumericVector is_pareto2(n2);
-    long i, j; 
+//    long T = X_mat1.ncol(); // dimension 
+    NumericVector is_pareto1(n1, 1);
+    NumericVector is_pareto2(n2, 1); // initialize to "TRUE"
+    long i, j; // , k; 
     long ctr = 0; // place1 = 0, place2 = 0;
+
 
     // First determine who is pareto-optimal from the first list 
     for(i=0; i<n1; i++) // change to inline to save time? 
     {
 //        is_pareto1[i] = is_pareto_optimal_rcpp(X_mat1(i,_), X_mat2); 
-
         is_pareto1[i] = TRUE; 
         // try inline function 
         for(j = 0; j < n2; j++)
+        {
+//          for(k = 0; k < T; k++)
+//            if(X_mat1(i,k) - X_mat2(j,k) > epsilon_minus) // here max(X_mat1(i,_) - X_mat2(j,_)) > epsilon_minus
+//              break;
+//          if(k == T-1) // here max(X_mat1(i,_) - X_mat2(j,_)) < epsilon_minus
+//            is_pareto1[i] = FALSE;
+
           if(max(X_mat1(i,_) - X_mat2(j,_)) < epsilon_minus)
           {
             is_pareto1[i] = FALSE;
@@ -200,6 +309,7 @@ List union_pareto_optimal_vecs_rcpp(NumericMatrix X_mat1, NumericMatrix X_mat2)
           }
  //       if(is_pareto1[i])
  //         place1 += n2; 
+        } // end loop on k
     }
     for(i=0; i<n2; i++)
     {
@@ -390,6 +500,12 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     long i, j, c; 
     long L1, L2;
 
+    // New: add an upperbound to the number of vectors to keep 
+    if(!loss_params.containsElementNamed("max.L"))
+      loss_params["max.L"] = 10000; 
+    if(as<long>(loss_params["max.L"]) == -1) // indicae no max to pile size 
+      loss_params["max.L"] = 99999999999999;
+
 //    Dimension dim = X.attr("dim");
     long M = X.n_rows; // dim[0];
     long C = X.n_cols; // dim[1];
@@ -404,25 +520,13 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         for(j = 0; j < T; j++)
             X0(i,j) = X(0,i,j);
 
-//    X.row(0).print(); 
-//    Rcout << "printed 0 row" << endl; 
-//    mat M(wrap(X.row(0))); 
- //   Rcout << "Converted to matrix " << endl; 
-  //  Rcout << M << endl; 
-//    NumericMatrix X0(wrap(X.row(0)));
-
-
-//    Rcout << "START get pareto CPP: " << endl;
-//    Rcout << "X0 = " << endl << X0 << endl; 
-//    Rcout << "X0 Dims: " << X0.nrow() << ", " << X0.ncol() << endl; 
-
 //    long T = X.n_slices; // dim[2];
     List par_X = get_pareto_optimal_vecs_rcpp(X0); // wrap(X.slice(0)));  // Save only Pareto-optimal vectors . Needs fixing 
 //    Rcout << "Copy list outputs c, par_X: " << as<NumericMatrix>(par_X["pareto.X"]) << endl 
 //      << " Inds: " << as<NumericVector>(par_X["pareto.inds"]) << endl;
-    NumericVector c_vec = as<NumericVector>(par_X["pareto.inds"]);
+    IntegerVector c_vec = as<IntegerVector>(par_X["pareto.inds"]);
 //    Rcout << "Copied vector!" << endl; 
-    NumericMatrix cur_c(c_vec.length(), 1);
+    IntegerMatrix cur_c(c_vec.length(), 1);
     cur_c(_,0) = c_vec; // par_X["pareto.inds"]);
 //    Rcout << "Copy list outputs X:" << endl;
     NumericMatrix cur_X = as<NumericMatrix>(par_X["pareto.X"]);
@@ -434,7 +538,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     NumericVector L_vec(M); // vector of zeros 
     L_vec[0] = L;
     NumericMatrix new_X; 
-    NumericMatrix new_c;
+    IntegerMatrix new_c;
     for(i=1; i<M; i++) //  in 2:M) # loop on block
     {
         L = cur_X.nrow();
@@ -445,10 +549,10 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
         for(j = 0; j < L; j++)
             new_X(j,_) = new_X(j,_) + v; // as<NumericVector>(wrap(X.subcube( span(i), span(0), span() )));  
     //    Rcout << "Copied X tensor blocks: " << i << endl;
-        new_c = NumericMatrix(L, i+1);
+        new_c = IntegerMatrix(L, i+1);
         for(j = 0; j<i; j++)    
             new_c(_, j) = cur_c(_, j);
-        new_c(_,i) = NumericVector(L, 0); // add 0 to last column 
+        new_c(_,i) = IntegerVector(L, 0); // add 0 to last column 
 
         NumericMatrix temp_X(L, i+1);
 //        List temp_X_list;
@@ -462,11 +566,11 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
                 temp_X(j,_) = temp_X(j,_)  + v; // as<NumericVector>(wrap(X.subcube( span(i), span(c), span() )));  // wrapping can be slow
 //            temp_X_list = get_pareto_optimal_vecs_rcpp(temp_X); // redundant !!! we know that they're all pareto optimal already !!  
             union_X = union_pareto_optimal_vecs_rcpp(new_X, temp_X); // temp_X_list["pareto.X"]);
-            L1 = as<NumericVector>(union_X["pareto.inds1"]).length();
-            L2 = as<NumericVector>(union_X["pareto.inds2"]).length();
+            L1 = as<IntegerVector>(union_X["pareto.inds1"]).length();
+            L2 = as<IntegerVector>(union_X["pareto.inds2"]).length();
             new_X = as<NumericMatrix>(union_X["pareto.X"]);
 //            Rcout << "add c=" << c << endl;
-            NumericMatrix add_c(L, i+1);
+            IntegerMatrix add_c(L, i+1);
             for(j = 0; j < i; j++)
                 add_c(_, j) = cur_c(_, j);
             for(j = 0; j < L; j++)
@@ -475,14 +579,14 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     //        Rcout << "New c=" << c << endl;
     //        Rcout << "L1=" << L1 << " L2=" << L2 << endl;
             cur_c = clone(new_c); // save previous
-            new_c = NumericMatrix(L1+L2, i+1);
+            new_c = IntegerMatrix(L1+L2, i+1);
     //        Rcout << "new_c_dim=" << new_c.nrow() << " , " << new_c.ncol() << endl;
 
     //        Rcout << "cur_c_dim_for_L1=" << cur_c.nrow() << " , " << cur_c.ncol() << endl;
     //        Rcout << "Pareto inds1: " << as<NumericVector>(union_X["pareto.inds1"]) << endl;
     //        Rcout << "Pareto inds2: " << as<NumericVector>(union_X["pareto.inds2"]) << endl; // NO 1 based indices for R!! 
-            NumericVector v1 = as<NumericVector>(union_X["pareto.inds1"]);
-            NumericVector v2 = as<NumericVector>(union_X["pareto.inds2"]);
+            IntegerVector v1 = as<IntegerVector>(union_X["pareto.inds1"]);
+            IntegerVector v2 = as<IntegerVector>(union_X["pareto.inds2"]);
             for(j = 0; j < L1; j++)
                 new_c(j,_) = cur_c(v1[j]/*as<NumericVector>(union_X["pareto.inds1"])[j]*/,_); // self copying
 //            Rcout << "Finished first loop: L1=" << L1 << " L2=" << L2 << endl;
@@ -490,9 +594,34 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
               new_c(L1+j,_) = add_c(v2[j]/*as<NumericVector>(union_X["pareto.inds2"])[j]*/,_); // assignment from the same variable! wtf?
     //        Rcout << "Finished second loop: L1=" << L1 << " L2=" << L2 << endl;    
         } // end loop on c 
-        cur_X = new_X;
-        cur_c = new_c;
         L_vec[i] = new_X.nrow();          
+
+        // New: filter list if too many elements in it 
+        if(L_vec[i] > as<long>(loss_params["max.L"]))
+        {
+            Rcout << "Num. Vectors too large! Reducing from " << L_vec[i] << " to " << as<long>(loss_params["max.L"]) << endl; 
+//              NumericVector loss_vec = loss_PS_mat_rcpp(cur_X, loss_type, loss_params); // comptue loss and sort by it 
+            IntegerVector loss_sort_index = sort_index(loss_PS_mat_rcpp(new_X, loss_type, loss_params)); // compute loss and sort by it
+
+            Rcout << "Sort Index: From " << min(loss_sort_index) << " to " << max(loss_sort_index) << endl; 
+            Rcout << "new_X dim: " << new_X.nrow() << ", " << new_X.ncol() << endl;
+            Rcout << "new_c dim: " << new_c.nrow() << ", " << new_c.ncol() << endl;
+
+            L_vec[i] = as<long>(loss_params["max.L"]);
+            cur_X = NumericMatrix(L_vec[i], new_X.ncol());
+            cur_c = IntegerMatrix(L_vec[i], new_c.ncol());
+
+            for(j = 0; j < L_vec[i]; j++)
+              cur_X(j,_) = new_X(loss_sort_index[j],_);
+            for(j = 0; j < L_vec[i]; j++)
+              cur_c(j,_) = new_c(loss_sort_index[j],_);
+        }  else // just copy 
+        {
+          cur_X = new_X;
+          cur_c = new_c;
+        }
+
+
     } // end loop on blocks 
 
  //   Rcout << "Finished big loop" << endl; 
