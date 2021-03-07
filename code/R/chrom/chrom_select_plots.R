@@ -50,7 +50,7 @@ gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #bb.loss.params$alg.str = "branch_and_bound"
 loss.params$do.checks = 0
 if(run.plots)
-  gain.res <- compute_gain_sim(params, loss.type, loss.params)$gain.mat # chromosomal selection
+  gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
 #  for(i in 1:length(params$c.vec))
 #  {
 #    params$C <- params$c.vec[i]
