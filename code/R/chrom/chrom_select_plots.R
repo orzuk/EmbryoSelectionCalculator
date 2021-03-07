@@ -17,10 +17,10 @@ start.time <- Sys.time()
 
 # SEt all parameters
 params <- c()
-params$M <- 22 # try full chromosomes  
-params$c.vec <- 2:10
+params$M <- 12 # try full chromosomes  
+params$c.vec <- 2:6
 params$T <- 5 # number of traits 
-params$iters <- 10
+params$iters <- 17
 df <- 5 # For wishart distribution
 
 h.ps <- 0.3  # variane explained by the polygenic score 
@@ -50,16 +50,14 @@ gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #bb.loss.params$alg.str = "branch_and_bound"
 loss.params$do.checks = 0
 if(run.plots)
-  for(i in 1:length(params$c.vec))
-  {
-    params$C <- params$c.vec[i]
-    Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
-    is.positive.definite(Sigma.K)
-    gain.mat[i,]  <- compute_gain_sim(params, loss.type, loss.params)$gain # chromosomal selection
+  gain.mat <- compute_gain_sim(params, loss.type, loss.params)$gain.mat # chromosomal selection
+#  for(i in 1:length(params$c.vec))
+#  {
+#    params$C <- params$c.vec[i]
 #    bb.gain.vec[i]  <- compute_gain_sim(params, loss.type, bb.loss.params)$gain # chromosomal selection
 #    gain.embryo.vec[i] <- compute_gain_sim(params, loss.type, embryo.loss.params)$gain # embryo selection   multi.trait.gain.mean
 #    gain.mat[i] <- L$gain.mat
-  }
+#  }
 
 
 overall.plot.time <- difftime(Sys.time() , start.time, units="secs")

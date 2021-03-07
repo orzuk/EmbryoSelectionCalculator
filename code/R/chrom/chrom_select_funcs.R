@@ -61,7 +61,7 @@ c_onehot_to_vec <- function(C.mat)
 }
 
 
-# Reduce a tensor of size M*C*T and a matrix of size M*C to a risk vector of length T
+# Reduce a tensor of size M*C*T and a vector of length M to a risk vector of length T
 compute_X_c_vec <- function(X, c.vec)
 {
   T <- dim(X)[3]
