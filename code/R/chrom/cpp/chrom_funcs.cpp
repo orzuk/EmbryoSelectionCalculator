@@ -603,9 +603,9 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
 //              NumericVector loss_vec = loss_PS_mat_rcpp(cur_X, loss_type, loss_params); // comptue loss and sort by it 
             IntegerVector loss_sort_index = sort_index(loss_PS_mat_rcpp(new_X, loss_type, loss_params)); // compute loss and sort by it
 
-            Rcout << "Sort Index: From " << min(loss_sort_index) << " to " << max(loss_sort_index) << endl; 
-            Rcout << "new_X dim: " << new_X.nrow() << ", " << new_X.ncol() << endl;
-            Rcout << "new_c dim: " << new_c.nrow() << ", " << new_c.ncol() << endl;
+//            Rcout << "Sort Index: From " << min(loss_sort_index) << " to " << max(loss_sort_index) << endl; 
+//            Rcout << "new_X dim: " << new_X.nrow() << ", " << new_X.ncol() << endl;
+//            Rcout << "new_c dim: " << new_c.nrow() << ", " << new_c.ncol() << endl;
 
             L_vec[i] = as<long>(loss_params["max.L"]);
             cur_X = NumericMatrix(L_vec[i], new_X.ncol());

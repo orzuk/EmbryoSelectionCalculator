@@ -17,10 +17,10 @@ start.time <- Sys.time()
 
 # SEt all parameters
 params <- c()
-params$M <- 12 # try full chromosomes  
-params$c.vec <- 2:6
+params$M <- 22 # try full chromosomes  
+params$c.vec <- 2:10
 params$T <- 5 # number of traits 
-params$iters <- 17
+params$iters <- 100
 df <- 5 # For wishart distribution
 
 h.ps <- 0.3  # variane explained by the polygenic score 
@@ -36,7 +36,7 @@ loss.params$K <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease
 loss.params$h.ps <- rep(h.ps, params$T)
 loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
 loss.params$eta <- 0 # negative L2 regularization 
-loss.params$n.blocks <- 2
+loss.params$n.blocks <- 1
 loss.params$cpp <- TRUE  #  TRUE # run in cpp 
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
@@ -50,7 +50,7 @@ gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #bb.loss.params$alg.str = "branch_and_bound"
 loss.params$do.checks = 0
 if(run.plots)
-  gain.mat <- compute_gain_sim(params, loss.type, loss.params)$gain.mat # chromosomal selection
+  gain.res <- compute_gain_sim(params, loss.type, loss.params)$gain.mat # chromosomal selection
 #  for(i in 1:length(params$c.vec))
 #  {
 #    params$C <- params$c.vec[i]
@@ -64,12 +64,12 @@ overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
 print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))
 
 # Save results to file: 
-save(params, loss.type, loss.params, gain.mat, overall.plot.time, file="disease_gain_chrom.Rdata")
+save(params, loss.type, loss.params, gain.res, overall.plot.time, file="disease_gain_chrom.Rdata")
 
 # Plot: 
 jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
-plot(params$c.vec, gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.mat), max(0, max(gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
-lines(params$c.vec, gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
+plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.res$gain.mat), max(0, max(gain.res$gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
+lines(params$c.vec, gain.res$gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
 legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
        c( "embryo", "chrom"), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 grid(NULL, NULL, lwd = 2)

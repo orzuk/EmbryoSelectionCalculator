@@ -242,8 +242,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
   if(!("n.blocks" %in% names(loss.params)))  
     loss.params$n.blocks <- 2  # default: divide to two blocks 
-  lip.alpha <- compute_lipschitz_const(loss.type, loss.params)
-  lip.tensor <- get_tensor_lipshitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors 
+#  lip.alpha <- compute_lipschitz_const(loss.type, loss.params)
+#  lip.tensor <- get_tensor_lipshitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors 
   
   # Divide to blocks: 
   M.vec <- rep(floor(M/loss.params$n.blocks), loss.params$n.blocks)
@@ -261,10 +261,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     opt.c.upperbound <- c(opt.c.upperbound,  B[[b]]$opt.c)
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)
-    #    print("BB Pareto X:")
-    #    print(B[[b]]$pareto.opt.X)
-    #    print("BB Pareto c:")
-    #    print(B[[b]]$pareto.opt.c)
   }
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
@@ -284,6 +280,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   
   for(b in run.blocks)
   {
+    block.start.time <- Sys.time()
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
       max.X <- max.X + B[[b2]]$max.X # this reduction can be applied on both sides 
@@ -309,6 +306,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
           min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
         }
       }
+      print(paste0("merge last block time (sec.):", difftime(Sys.time() , block.start.time, units="secs")))
       merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
       print(paste0("merge time (sec.):", merge.time))
       
@@ -328,13 +326,13 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       
       # Next merge the two 
       new.X <- rbind(new.X, new.v$pareto.X)
-      if( length(new.v$pareto.inds)<=1 )
-      {
-        print("1: ")
-        print(cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE)    ) )
-        print("2: ")
-        print( B[[b+1]]$pareto.opt.c[new.v$pareto.inds,] )
-      }
+#      if( length(new.v$pareto.inds)<=1 )
+#      {
+#        print("1: ")
+#        print(cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE)    ) )
+#        print("2: ")
+#        print( B[[b+1]]$pareto.opt.c[new.v$pareto.inds,] )
+#      }
       new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=TRUE)) )
       new.X <- get_pareto_optimal_vecs(new.X) # could be costly to run again all new.X against themselves 
@@ -506,9 +504,8 @@ optimize_C_embryo <- function(X, loss.type, loss.params)
 }
 
 
-
-
 # A wrapper function for all optimizations
+# Find c vec minimizing the loss: loss ( \sum_i X[i,c.vec[i],])
 optimize_C <- function(X, loss.type, loss.params, alg.str)
 {
   M <- dim(X)[1]; C <- dim(X)[2];  T <- dim(X)[3]
