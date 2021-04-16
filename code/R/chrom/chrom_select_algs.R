@@ -13,6 +13,14 @@ source('chrom_select_funcs.R')
 
 # a function for optimizing the selection of chromosomes:
 # Run the optimization to find the optimal C:
+# Input: 
+# X - a 3D tensor of block genetic scores
+# C.init - 
+# loss.type - type of loss function
+# loss.params - parameters determining the loss function
+# 
+# Output: 
+# list with optimal choices 
 optimize_C_relax <- function(X, C.init, loss.type, loss.params)
 {
   print("Start optimize relax")
