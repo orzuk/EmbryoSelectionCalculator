@@ -15,7 +15,7 @@ figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\Pareto\\"
 start.time <- Sys.time()
 
 
-
+col.vec <- c("red", "green", "blue", "orange", "purple", "pink", "yellow", "cyan", "black", "brown")
 
 # Plot p_{k,n} using asymptotic 
 
@@ -50,11 +50,22 @@ names(p_k_n) <- as.character(c.vec)
 p_k_n$n <- c(1:max.n)
 
 
+p_k_n_melt <- melt(p_k_n , id.vars = 'n', variable.name = 'series')
+
+ggplot(p_k_n_melt, aes(n,value)) + geom_line(aes(colour = series)) + 
+  scale_x_continuous(trans='log') +
+  scale_y_continuous(trans='log')
+
+
+
+
 # try again: 
-p_k_n <- matrix(0, nrow=max.k, ncol=num.c)
+p_k_n <- matrix(1, nrow=max.k, ncol=num.c) # 1 is unfilled 
+n_k_n <- matrix(0, nrow=max.k, ncol=num.c)
 for(k in c(1:max.k))
 {
   cur.n.vec <- round(  exp(k / c.vec))
+  n_k_n[k,] <- cur.n.vec
   
   for(c in c(1:num.c))
     if(cur.n.vec[c] <= max.n)
@@ -62,15 +73,16 @@ for(k in c(1:max.k))
 }
 p_k_n <- as.data.frame(p_k_n)
 names(p_k_n) <- as.character(c.vec)
-p_k_n$n <- c(1:max.n)
 
+# Plot for multiple n values 
+plot(log(n_k_n[,1]), log(p_k_n[,1]), col=col.vec[1], type="l", xlim=c(0, 100), ylim=c(-5,0.2))
+for(c in c(2:num.c))
+{
+  lines(log(n_k_n[,c]), log(p_k_n[,c]), col=col.vec[c])
+}
+  
+  
 
-
-p_k_n_melt <- melt(p_k_n , id.vars = 'n', variable.name = 'series')
-
-ggplot(p_k_n_melt, aes(n,value)) + geom_line(aes(colour = series)) + 
-  scale_x_continuous(trans='log') +
-  scale_y_continuous(trans='log')
 
 
 
