@@ -568,7 +568,6 @@ compute_gain_sim <- function(params, loss.type, loss.params)
     #    print("Solve:")
     # New: loop on all methods (same X to reduce variance) 
     
-    
     for(i.c in 1:n.c)  # loop on C, take partial data     
     {
       c <- params$c.vec[i.c]

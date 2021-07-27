@@ -6,6 +6,7 @@ library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 library(BH)
+library(ecr)
 
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
@@ -19,6 +20,17 @@ chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,
 
 
 # Simulate a 3rd-order tensor of polygenic scores risk 
+# Inputs: 
+# M - number of embryos
+# Number of total chromosomes (blocks)
+# T - number of traits
+# Sigma.T - covariance of traits
+# Sigma.K - covariance of individuals
+# sigma.blocks - ??
+# prev - vector of disease prevalences 
+# 
+# Output: 
+# X - a 3rd order tensor with scores. X[i,j,k] is score of embryo i in block j for trait k
 simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, Sigma.K, sigma.blocks, prev) # vectorize later    Z, K, E, n_sims = 1000) {
 {
   X = array(0, dim=c(M, C, T))
@@ -61,7 +73,12 @@ c_onehot_to_vec <- function(C.mat)
 }
 
 
-# Reduce a tensor of size M*C*T and a vector of length M to a risk vector of length T
+# Reduce a tensor of size M*C*T and a vector of length M to a risk vector of length T by summation 
+# Input: 
+# X - 3rd order tensor
+# c.vec - indices
+# Output: 
+# X.c - a vector of length T that is sum of M vectors , one per each slice 
 compute_X_c_vec <- function(X, c.vec)
 {
   T <- dim(X)[3]
@@ -291,6 +308,7 @@ pareto_P <- function(n, k)
 
 
 # Probability that a random Gaussian vector i.i.d. of dimension k is pareto out of n vectors 
+# Recursive, slower. Not used.
 pareto_P2 <- function(n, k)
 {
   if( k == 1)
@@ -302,7 +320,8 @@ pareto_P2 <- function(n, k)
 }
 
 
-# Compute recursivelt for all k and n to save time 
+# Probability that a random Gaussian vector i.i.d. of dimension k is pareto out of n vectors. 
+# Compute recursively for all k and n to up to max.n, max.k respectively to save time 
 pareto_P_mat <- function(max.n, max.k)
 {
   P.mat <- matrix(0, nrow=max.n, ncol=max.k)
@@ -317,7 +336,7 @@ pareto_P_mat <- function(max.n, max.k)
 }
 
 
-# Asymptotic approximation
+# Asymptotic approximation for p_n,k (first or other orders )
 pareto_P_approx <- function(n, k, order=2)
 {
   if(order==1)
@@ -328,17 +347,9 @@ pareto_P_approx <- function(n, k, order=2)
   return(r)
 }
 
-# Asymptotic approximation - take 2nd order 
-#pareto_P_approx2 <- function(n, k)
-#{
-#  r <- 0
-#  for(i in 1:k)
-#    r <- r  + (log(n)^(i-1) * (-digamma(1))^(k-i) / (n*factorial(i-1)))
-#  return(r)
-#}
 
 
-# Compute pareto optimal probability under indepndence with simmmulations 
+# Compute pareto optimal probability under indepndence with simulations 
 pareto_P_sim <- function(n, k, iters=1000)
 {
   n.pareto <- 0
@@ -351,6 +362,11 @@ pareto_P_sim <- function(n, k, iters=1000)
 
 
 # Compare different methods for calculating p_k(n)
+# Input: 
+# n.vec - values of n
+# k - value of k
+# C - ???
+# iters - how many simulations to run 
 compare_pareto_P <- function(n.vec, k, C=2, iters = 1000)
 {
   num.n <- length(n.vec)
@@ -531,4 +547,31 @@ is_monotone_loss <- function(loss.type)
 }
   
 
+# Compute pareto probability for binary vectors (consider ties)
+pareto_P_binary <- function(n, k)
+{
+  return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1)))^(n-1)) )
+}
 
+
+# Compute pareto probability for binary vectors for a matrix of n and k values (consider ties)
+pareto_P_binary_mat <- function(max.n, max.k)
+{
+  P.mat <- matrix(0, nrow=max.n, ncol=max.k)
+  # for k == 1
+  P.mat[, 1] <- 1 - 0.5 * (1 - 0.5 ^ c(0:(max.n-1))) 
+  
+  for(k in c(2:max.k))
+  {
+    binom.prob.vec <- dbinom(0:k, k, 0.5)
+    cond.prob.mat <- exp( log(1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1))) %*% t(c(0:(max.n-1))) )
+    
+    P.mat[, k] <- colSums(binom.prob.vec * cond.prob.mat)
+  }
+  return(P.mat)
+}
+  
+  
+  
+  
+  

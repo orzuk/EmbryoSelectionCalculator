@@ -15,7 +15,7 @@ figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
 start.time <- Sys.time()
 
 
-# SEt all parameters
+# Set all parameters
 params <- c()
 params$M <- 22 # try full chromosomes  
 params$c.vec <- 2:10
