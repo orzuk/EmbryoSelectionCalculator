@@ -7,7 +7,7 @@ library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 library(BH)
 library(ecr)
-
+library(Rfast)
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
 
@@ -298,12 +298,18 @@ project_stochastic_matrix <- function(C.mat)
 # Probability that a random Gaussian vector i.i.d. of dimension k is pareto out of n vectors 
 pareto_P <- function(n, k)
 {
-  r <- 0
-  for(i in c(1:n))
-  {
-    r <- r + choose(n-1,i-1) * (-1)^(i-1) / i^k
-  }
-  return(r)
+  log.binom <- lchoose(n-1, 0:(n-1)) - k * log(1:n)
+  max.exp <- max(log.binom)
+#  log.binom <- log.binom - max.exp
+  return (   sum(exp(log.binom - max.exp) * (-1)^c(0:(n-1))) * exp(max.exp) )
+  
+  # naive implementation  
+#  r <- 0
+#  for(i in c(1:n))
+#  {
+#    r <- r + choose(n-1,i-1) * (-1)^(i-1) / i^k
+#  }
+#  return(r)
 }
 
 
@@ -548,26 +554,36 @@ is_monotone_loss <- function(loss.type)
   
 
 # Compute pareto probability for binary vectors (consider ties)
-pareto_P_binary <- function(n, k)
+pareto_P_binary <- function(n, k, strong = FALSE)
 {
-  return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1)))^(n-1)) )
+  if(strong)
+    return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k))^(n-1)) )
+  else
+    return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1)))^(n-1)) )
 }
 
 
 # Compute pareto probability for binary vectors for a matrix of n and k values (consider ties)
-pareto_P_binary_mat <- function(max.n, max.k)
+pareto_P_binary_mat <- function(max.n, max.k, strong = FALSE)
 {
   P.mat <- matrix(0, nrow=max.n, ncol=max.k)
   # for k == 1
-  P.mat[, 1] <- 1 - 0.5 * (1 - 0.5 ^ c(0:(max.n-1))) 
+  if(strong)
+    P.mat[, 1] <- 0.5 ^ c(1:max.n) 
+  else
+    P.mat[, 1] <- 1 - 0.5 * (1 - 0.5 ^ c(0:(max.n-1))) 
   
   for(k in c(2:max.k))
   {
     binom.prob.vec <- dbinom(0:k, k, 0.5)
-    cond.prob.mat <- exp( log(1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1))) %*% t(c(0:(max.n-1))) )
+    if(strong)
+        cond.prob.mat <- exp( log( (1 - 0.5^c(0:k))) %*% t(c(0:(max.n-1))) )
+    else
+        cond.prob.mat <- exp( log(1 - 0.5^c(0:k) * (1 - 0.5^seq(k, 0, -1))) %*% t(c(0:(max.n-1))) )
     
     P.mat[, k] <- colSums(binom.prob.vec * cond.prob.mat)
   }
+  P.mat[1,] <- 1 # fix log-error for strong Pareto
   return(P.mat)
 }
   
