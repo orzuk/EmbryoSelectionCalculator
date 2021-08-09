@@ -118,3 +118,20 @@ legend(0, -7, lwd=rep(1, k.plt),  as.character(c(1:k.plt)), col=col.vec[1:k.plt]
 # cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 dev.off()
 
+
+
+# Compute upper-bound m_k
+library(pracma)
+k = 1000
+log_m_k = (0:(k-1)) * ( log(0:(k-1)) - 1) - lfactorial(0:(k-1))
+log_m_k_tag = log( 0:(k-1)) - psi(0, 1:k)
+
+
+
+
+plot(1:k, log_m_k)
+
+plot(1:k, log_m_k_tag)
+
+
+
