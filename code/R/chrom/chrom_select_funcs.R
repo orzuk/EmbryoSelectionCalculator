@@ -586,6 +586,23 @@ pareto_P_binary_mat <- function(max.n, max.k, strong = FALSE)
   P.mat[1,] <- 1 # fix log-error for strong Pareto
   return(P.mat)
 }
+
+# Comptue the matrix of alpha_j,k coefficients and the vector of m_k coefficients
+pareto_alpha_mat_m_vec <- function(max.k, log.flag = FALSE)
+{
+  log.m.k = c(0, (1:(max.k-1)) * ( log(1:(max.k-1)) - 1) - lfactorial(1:(max.k-1)))
+  m.k <- exp(log.m.k)
+  alpha.mat <- matrix(0, max.k, max.k)
+  alpha.mat[1,1] <- 1
+  for(k in c(2:max.k))
+  {
+    alpha.mat[2:k, k] <- alpha.mat[1:(k-1), k-1]
+    alpha.mat[1,k] <- 2 * (sum(m.k[1:(k-1)] * alpha.mat[1:(k-1),k-1]) + m.k[k])
+  }
+  
+  return(list(m.k=m.k, alpha.mat=alpha.mat))  
+}
+
   
   
   
