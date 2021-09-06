@@ -1,4 +1,6 @@
 library(cubature) # for multi-dimensional integration
+library(iterpc)
+library(Rmpfr) # arbitrary precision
 
 # Function for counting pareto-optimal vectors 
 # Compute Pareto optimal probability under independence with simulations 
@@ -266,7 +268,7 @@ pareto_P_var_integrand_n2 <- function(x)
   x2 <- x[(k+1):(2*k)]
   return(  (1 - all(x1 < x2) - all(x2 < x1))  )
 }  
-  
+
 
 pareto_P_var_integrand_all <- function(x)
 {
@@ -281,47 +283,47 @@ pareto_P_var_integrand_all <- function(x)
 pareto_P_var_integrand <- function(x)
 {
   
-#  print("Dim x start:")
-#  print(dim(x))
-#  print("X start:")
-#  print(x)
+  #  print("Dim x start:")
+  #  print(dim(x))
+  #  print("X start:")
+  #  print(x)
   k <- length(x) / 2 # no need to give as input
   x1 <- x[1:k]
   x2 <- x[(k+1):(2*k)]
   return(  (1 - all(x1 < x2) - all(x2 < x1)) * 
-    (1 - prod(x1) - prod(x2) + prod(pmin(x1, x2)))^(my.n-2) )
-
-#  return(  (1 - all(x[1:k] < x[(k+1):(2*k)]) - all(x[(k+1):(2*k)] < x[1:k])) * 
-#             (1 - prod(x[1:k]) - prod(x[(k+1):(2*k)]) + prod(pmin(x[1:k], x[(k+1):(2*k)])))^(my.n-2) )
+             (1 - prod(x1) - prod(x2) + prod(pmin(x1, x2)))^(my.n-2) )
   
-      
-#  print("Dim x:")
-#  print(dim(x))
-    
-#  yy <- x1 < x2
-#  print(yy)
-#  pp <- apply(x1 < x2, 2, prod)
-#  print("pp:")
-#  print(pp)
+  #  return(  (1 - all(x[1:k] < x[(k+1):(2*k)]) - all(x[(k+1):(2*k)] < x[1:k])) * 
+  #             (1 - prod(x[1:k]) - prod(x[(k+1):(2*k)]) + prod(pmin(x[1:k], x[(k+1):(2*k)])))^(my.n-2) )
   
   
-#  pm <- pmin(x1,x2)
-#  print("Dim pm:")
-#  print(dim(pm))
-#  r1 <- (1 - apply(x1 < x2, 2, prod) - apply(x2 < x1, 2, prod))
-#  print("r1:")
-#  print(r1)
-#  r2 <- (1 - apply(x1, 2, prod) - apply(x2, 2, prod)) #  + apply(pmin(x1,x2), 2, prod))
-#  print("r2:")
-#  print(r2)
-#  r <- (1 - apply(x1 < x2, 2, prod) - apply(x2 < x1, 2, prod)) * 
-#          (1 - apply(x1, 2, prod) - apply(x2, 2, prod) + apply(pmin(x1,x2), 2, prod))^(my.n-2)
-#  print("r:")
-#  print(r)
-#  print("Dim r:")
-#  print(dim(r))
+  #  print("Dim x:")
+  #  print(dim(x))
   
-#  return(r)  
+  #  yy <- x1 < x2
+  #  print(yy)
+  #  pp <- apply(x1 < x2, 2, prod)
+  #  print("pp:")
+  #  print(pp)
+  
+  
+  #  pm <- pmin(x1,x2)
+  #  print("Dim pm:")
+  #  print(dim(pm))
+  #  r1 <- (1 - apply(x1 < x2, 2, prod) - apply(x2 < x1, 2, prod))
+  #  print("r1:")
+  #  print(r1)
+  #  r2 <- (1 - apply(x1, 2, prod) - apply(x2, 2, prod)) #  + apply(pmin(x1,x2), 2, prod))
+  #  print("r2:")
+  #  print(r2)
+  #  r <- (1 - apply(x1 < x2, 2, prod) - apply(x2 < x1, 2, prod)) * 
+  #          (1 - apply(x1, 2, prod) - apply(x2, 2, prod) + apply(pmin(x1,x2), 2, prod))^(my.n-2)
+  #  print("r:")
+  #  print(r)
+  #  print("Dim r:")
+  #  print(dim(r))
+  
+  #  return(r)  
 }
 
 # Vectorized version 
@@ -333,18 +335,18 @@ pareto_P_var_integrand_v <- function(x)
   x1 <- x[1:k,]
   x2 <- x[(k+1):(2*k),]
   return( matrix( (1 - apply(x1 < x2, 2, all) - apply(x2 < x1, 2, all)) * 
-            (1 - apply(x1, 2, prod) - apply(x2, 2, prod) + apply(pmin(x1,x2), 2, prod))^(my.n-2) , ncol(x)) )
+                    (1 - apply(x1, 2, prod) - apply(x2, 2, prod) + apply(pmin(x1,x2), 2, prod))^(my.n-2) , ncol(x)) )
 }
 
 
 my.sum <- function(x)
 {
-#  print("dim x:")
-#  print(dim(x))
-#  print("x:")
-#  print(x)
-#  print("Dim output sum:")
-#  print(dim(sum(x)))
+  #  print("dim x:")
+  #  print(dim(x))
+  #  print("x:")
+  #  print(x)
+  #  print("Dim output sum:")
+  #  print(dim(sum(x)))
   if(is.vector(x))
     return(sum(x))
   else
@@ -363,7 +365,9 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
   }  else
     V <- cubintegrate(f = pareto_P_var_integrand, lower = rep(0, 2*k), upper = rep(1, 2*k), method = integral_method) # "hcubature") # integrate   
   
-    
+  
+  # New: Use combinatorial   
+  
   p_n_k <- pareto_P2(n, k)
   print(paste0("e_{n,k}=", round(V$integral, 6), " , p_{n,k}=", round(p_n_k, 6), 
                " , p_{n,k}^2=", round(p_n_k^2, 6), " , COV_{n,k}=", round(V$integral - p_n_k^2, 6)))
@@ -376,3 +380,149 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
 #V2 <- pareto_P_var(2, 3, "cuhre")
 #cubintegrate(f = my.sum, lower = rep(0, 2*k), upper = rep(1, 2*k), method = "hcubature") # integrate   
 #cubintegrate(f = pareto_P_var_integrand, lower = rep(0, 2*k), upper = rep(1, 2*k), method = "hcubature") # integrate   
+
+# Probability that the two first vectors are in teh Pareto-front
+pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.prec=FALSE)
+{
+  start.time <- Sys.time()
+  max.val <- 0
+  e_k_n <- 0
+  
+  
+  if(mulit.prec==TRUE)
+  {
+    dig <- 128
+    e_k_n <- mpfr(0, dig)
+    kk <- mpfr(k, dig)
+    nn <- mpfr(n, dig)
+    run.vec <- mpfr(c(0:(n-2)), dig)
+  }
+  
+  ctr <- 1
+  if(alternate.flag)  # sum (a+1,b,c,d) and (a,b,c+1,d) together
+  {
+    e_k_n_vec <- rep(0, (n-2)^3)
+    for(a in seq(0, n-3, 2)) # take only even values !!! 0:(n-3))  # don't take the last a !!!
+      for(b in 0:(n-3-a))
+        for(c in 0:(n-3-a-b))
+        {
+          d <- n-3-a-b-c  # (take a+1,b,c,d)
+          
+          log.frac <- log( (a+b+2*c+3)^k - (a+c+2)^k - (b+c+1)^k )  - k * (log(a+c+2) + log(b+c+1) + log(a+b+c+3))  # log-based implementation
+          log.fact <- lfactorial(n-2) -sum(lfactorial(c(a+1,b,c,d)))
+          log.ratio <- log(c+1) - log(a+1) + k*(log(b+c+2) - log(b+c+1) ) + log( (a+b+2*c+3)^k - (a+c+2)^k - (b+c+1)^k  ) - log( (a+b+2*c+4)^k - (a+c+2)^k - (b+c+2)^k  )
+          
+          
+          #          print(paste0("Alt1: (a,b,c,d)= ", paste0(c(a+1,b,c,d), collapse=","), ", Val=", round( (-1)^(a+b+1) * exp(log.fact + log.frac), 3)))
+          #          print(paste0("Alt2: (a,b,c,d)= ", paste0(c(a,b,c+1,d), collapse=","), ", Val=", round( (-1)^(a+b) * exp(log.fact + log.frac - log.ratio), 3)))
+          
+          #          print(paste0("log.ratio=", round(log.ratio, 5)))
+          #          print(c(a,b,c,d,k))
+          
+          e_k_n <- e_k_n + (-1)^(a+b+1) * exp(log.fact + log.frac) * (1 - exp(-log.ratio))
+          e_k_n_vec[ctr] <- (-1)^(a+b+1) * exp(log.fact + log.frac) * (1 - exp(-log.ratio))
+          ctr <- ctr+1
+        }
+    
+    # add boundaries  
+    for(a in seq(0, n-2, 2)) # take only even values !!! 0:(n-3))  # don't take the last a !!!
+      for(b in 0:(n-2-a))
+      {
+        #        a <- 0
+        c <- 0
+        d <- n-2-a-b-c  # (take a+1,b,c,d)
+        log.frac <- log( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k )  - k * (log(a+c+1) + log(b+c+1) + log(a+b+c+2))  # log-based implementation
+        log.fact <- lfactorial(n-2) -sum(lfactorial(c(a,b,c,d)))
+        e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
+        e_k_n_vec[ctr] <- (-1)^(a+b) * exp(log.fact + log.frac)
+        ctr <- ctr + 1
+        #        print(paste0("Alt: (a,b,c,d)= ", paste0(c(a,b,c,d), collapse=","), ", Val=", round( (-1)^(a+b) * exp(log.fact + log.frac), 3)))
+      }
+    
+    print("TOTAL VEC SUM:")
+    print(sum(e_k_n_vec))
+    
+  } else
+  {
+    if(mulit.prec==TRUE)
+    {
+#      for(a in run.vec)
+#        for(b in run.vec[1:(n-1-as.integer(a))]) 
+#            for(c in run.vec[1:(n-1-as.integer(a+b))])
+              
+      for(a in 0:(n-2))
+      {
+        aa <- run.vec[a+1]
+          for(b in 0:(n-2-a))
+          {
+            bb <- run.vec[b+1]
+            for(c in 0:(n-2-a-b))              
+            {
+              cc <- run.vec[c+1]
+              dd <- nn-2-aa-bb-cc
+              log.frac <- log( (aa+bb+2*cc+2)^k - (aa+cc+1)^k - (bb+cc+1)^k )  - k * (log(aa+cc+1) + log(bb+cc+1) + log(aa+bb+cc+2))  # log-based implementation
+              log.fact <- lfactorial(nn-2) -sum(lfactorial(c(aa,bb,cc,dd)))
+              e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
+
+#                            d <- n-2-a-b-c
+#              log.frac <- log( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k )  - k * (log(a+c+1) + log(b+c+1) + log(a+b+c+2))  # log-based implementation
+#              log.fact <- lfactorial(nn-2) -sum(lfactorial(c(a,b,c,d)))
+#              e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
+            }
+          }
+      }
+    } else # don't use high-precision
+    {
+      for(a in 0:(n-2))
+        for(b in 0:(n-2-a))
+          for(c in 0:(n-2-a-b))
+          {
+            d <- n-2-a-b-c
+            #        print(c(a,b,c,d))
+            if(log.flag == FALSE)
+              e_k_n <- e_k_n + (-1)^(a+b) * multichoose(c(a,b,c,d)) * 
+                ( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k ) / ( (a+c+1)*(b+c+1)*(a+b+c+2) )^k  # naive implementation. Overflow for large n
+            else
+            {
+              #            if(mulit.prec==TRUE)
+              #            {
+              #              aa <- mpfr(a, dig)
+              #              bb <- mpfr(b, dig)
+              #              cc <- mpfr(c, dig)
+              #              dd <- mpfr(d, dig)
+              #              log.frac <- log( (aa+bb+2*cc+2)^k - (aa+cc+1)^k - (bb+cc+1)^k )  - kk * (log(aa+cc+1) + log(bb+cc+1) + log(aa+bb+cc+2))  # log-based implementation
+              #              log.fact <- lfactorial(nn-2) -sum(lfactorial(c(aa,bb,cc,dd)))
+              #              e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
+              #            } else
+              #            {
+              log.frac <- log( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k )  - k * (log(a+c+1) + log(b+c+1) + log(a+b+c+2))  # log-based implementation
+              log.fact <- lfactorial(n-2) -sum(lfactorial(c(a,b,c,d)))
+              e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
+              #              print(paste0("Add: (a,b,c,d)= ", paste0(c(a,b,c,d), collapse=","), ", Val=", round( (-1)^(a+b) * exp(log.fact + log.frac), 5)))
+              #            }
+              #            max.val <- max(max.val, exp(log.fact + log.frac))
+            }
+          } # end for loop
+    } # end else high-precision
+  }
+  #  print("Max term:")
+  #  print(max.val)
+  e_k_n_vec <- 0
+  return(list(e_k_n=e_k_n, e_k_n_vec=e_k_n_vec[1:ctr], run.time = Sys.time()-start.time))
+}        
+
+
+
+# Test function: 
+k=3; n=3;  pareto_E_Z1Z2(k,n, FALSE);  pareto_E_Z1Z2(k,n, TRUE)$e_k_n; pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
+
+k=2; n=20;  A <-  pareto_E_Z1Z2(k,n, TRUE); C <- pareto_E_Z1Z2(k,n, TRUE, FALSE, TRUE); #  B <- pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
+print(A$e_k_n)
+#print(B)
+print(C$e_k_n)
+print(C$run.time)
+
+pareto_P2(n, k)
+pareto_P2(n, k)^2
+
+
