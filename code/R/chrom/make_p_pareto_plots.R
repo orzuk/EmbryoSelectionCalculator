@@ -7,6 +7,7 @@ library(matrixNormal)
 library(Rfast)
 library(ecr)
 library(latex2exp)
+library(pracma)
 
 Sys.setenv(RETICULATE_PYTHON = "C:\\ProgramData\\Anaconda3")  # SEt python path 
 library(reticulate) # calling python function
@@ -59,7 +60,7 @@ max.y <- max(log(mu_k_n_mat[,1:num.k]))
 png(paste0(figs_dir, 'p_k_n_fixed_k.png')  , res=300,  width = 300, height=300, units="mm")
 par(mar=c(5,6,4,1)+.1) # increase left margin
 plot(log(n.vec), log(mu_k_n_mat[n.vec,k]), col="white", ylim=c(-0.0, 1.01*max.y), 
-     xlab=TeX("log(n)"), ylab=TeX("$log(\\mu_{k,n})$"), cex.lab=2, cex.axis=2)
+     xlab=TeX("$log(n)$"), ylab=TeX("$log(\\mu_{k,n})$"), cex.lab=2, cex.axis=2)
 grid()
 chr.col.vec <- rep("", num.k)
 for(k in c(1:num.k))
@@ -212,7 +213,9 @@ load("e_k_n_big_tab.Rdata")
 png(paste0(figs_dir, 'p_k_n_dist.png'), 
             res=300,  width = 300, height=300, units="mm")
 par(mfrow=c(3,3), mai = c(0.0, 0.0, 0.0, 0.0), mar=c(4,6,2,0)+.1)  # mar=c(5,6,4,1)+.1)  # For subplots  # mai = c(1, 0.1, 0.1, 0.1)
-# par(mfrow=c(3,3))  # For subplots  # mai = c(1, 0.1, 0.1, 0.1)
+
+#k.vec <- 5
+#n.vec <- 100
 for(n in n.vec)
   for(k in k.vec)
   {
@@ -246,7 +249,7 @@ for(n in n.vec)
 #    par(mar=c(5,6,4,1)+.1) # increase left margin
     plot(as.numeric(names(dist.pareto)), as.numeric(dist.pareto), ylim=c(0, y.max), 
          pch=19, cex.lab=2, cex.axis=2, xlab="", ylab="")
-    if(n == n.vec[3])
+    if(n == n.vec[length(n.vec)])
       title(xlab=TeX(paste0("$k=", as.character(k), "$")), cex.lab=2) 
     if(k == k.vec[1])
       title(ylab=TeX(paste0("$n=", as.character(n), "$")), cex.lab=2)
@@ -254,7 +257,7 @@ for(n in n.vec)
     lines(simrange, dist.pois, col="red", lwd=1.5)
     lines(simrange, dist.norm, col="blue", lwd=1.5)# new: normal approximation    
     
-    if((n == n.vec[3]) & (k == k.vec[3])) # add legend
+    if((n == n.vec[length(n.vec)]) & (k == k.vec[length(k.vec)])) # add legend
       legend(min(simrange), 0.99*y.max, lwd=rep(1, 3), c("Sim.", "Poisson", "Gaussian"), cex=2, 
              col=c("black", "red", "blue"), lty=c(NA,1,1), pch=c(19, NA, NA), box.lwd = 0,box.col = "white",bg = "white")
   
@@ -267,6 +270,29 @@ for(n in n.vec)
 dev.off()
 
   
+# Figure 5: Compute correlations
+corr.mat <- matrix(0, 200, 10)
+for(k in (1:6))
+  for(n in (1:100))
+  {
+    if(n%%10 == 0)
+      print(paste0("Run corr n=", as.character(n), " k=", as.character(k)))
+    corr.mat[n, k] <- pareto_P_corr(k, n)    
+  }
+
+
+png(paste0(figs_dir, 'corr_k_n.png')  , res=300,  width = 300, height=300, units="mm")
+par(mar=c(5,6,4,1)+.1) # increase left margin
+k.plt <- 5
+plot(2:100, -sign(corr.mat[2:100,1]) * log(abs(corr.mat[2:100,1])), pch=19, 
+     xlab="n", ylab=TeX("$-sign(\\rho) \\cdot log(| \\rho |)$"), ylim=c(-7,7), col=chr.k.col.vec[1])
+for(k in (2:5))
+  points(2:100, -sign(corr.mat[2:100,k]) * log(abs(corr.mat[2:100, k])), pch=19, col=chr.k.col.vec[k])
+grid()
+legend(80, 2, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), lty=rep(NA, k.plt), pch=rep(19, k.plt), 
+       col=chr.k.col.vec[1:k.plt], cex=1.5, box.lwd = 0,box.col = "white", bg = "white") 
+dev.off()
+
 
 
 
@@ -275,17 +301,8 @@ dev.off()
 #####################################################
 
 
-# Compute correlations
-corr.mat <- matrix(0, 100, 5)
-for(k in (1:5))
-  for(n in (1:100))
-  {
-    print(paste0("Run corr n=", as.character(n), " k=", as.character(k)))
-    corr.mat[n, k] <- pareto_P_corr(k, n)    
-  }
 
 # Compute upper-bound m_k
-library(pracma)
 k = 1000
 log_m_k = (0:(k-1)) * ( log(0:(k-1)) - 1) - lfactorial(0:(k-1))
 log_m_k_tag = log( 0:(k-1)) - psi(0, 1:k)

@@ -17,7 +17,7 @@ def get_first_primes(n):
             for i in range(p**2, n+1, p):
                 is_prime[i] = False
         p += 1
-    return [p for p in range(2, n) if is_prime[p]]
+    return [p for p in range(2, n+1) if is_prime[p]]
 
 
 # Compute the least common multiple of 1,2,..,n
@@ -29,7 +29,7 @@ def lcm_first(n):
     return lcm
 
 
-def pareto_E_Z1Z2_python(k, n, dps = 100):
+def pareto_E_Z1Z2_python(k, n, dps=100):
     start = time.time()
 
     if n == 1:

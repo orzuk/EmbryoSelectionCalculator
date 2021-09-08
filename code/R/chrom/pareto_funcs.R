@@ -11,7 +11,7 @@ pareto_P_sim <- function(n, k, iters=1000)
 {
   n.pareto <- rep(0, iters)
   for(i in 1:iters)
-    n.pareto[i] <- length(get_pareto_optimal_vecs(matrix(runif(n*k), nrow=n, ncol=k))$pareto.inds) # Simulate vectors 
+    n.pareto[i] <- length(get_pareto_optimal_vecs(matrix(runif(n*k), nrow=n, ncol=k), FALSE )$pareto.inds) # Simulate vectors 
   p.pareto <- mean(n.pareto) / n
   return(list(n.pareto=n.pareto, p.pareto=p.pareto, 
               e12.pareto = p.pareto^2 + (var(n.pareto) - n*p.pareto*(1-p.pareto)) / nchoosek(n, 2)))
@@ -76,10 +76,10 @@ is_pareto_optimal <- function(x, X.mat)
   return( min(rowMaxs(t(replicate(n.row, x))+epsilon - X.mat, value=TRUE)) >= 0 )
 }
 
-# Extract only pareto-optimal vectors in a matrix
-get_pareto_optimal_vecs <- function(X.mat)
+# Extract only Pareto-optimal vectors in a matrix
+get_pareto_optimal_vecs <- function(X.mat, cpp.flag = FALSE)
 {
-  cpp.flag <- FALSE
+#  cpp.flag <- FALSE
   if(cpp.flag)
   {
     par <- get_pareto_optimal_vecs_rcpp(X.mat)
@@ -392,7 +392,7 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
   print(paste0("e_{n,k}=", round(e_k_n, 6), " , p_{n,k}=", round(p_n_k, 6), 
                " , p_{n,k}^2=", round(p_n_k^2, 6), " , COV_{n,k}=", round(e_k_n - p_n_k^2, 6)))
   
-  return(list(V = n * p_n_k * (1-p_n_k) + nchoosek(n, 2) * (e_k_n - p_n_k^2), run.time = Sys.time() - start_time))
+  return(list(V = n * p_n_k * (1-p_n_k) + n*(n-1) * (e_k_n - p_n_k^2), run.time = Sys.time() - start_time))
 }
 
 
@@ -646,5 +646,30 @@ pareto_E_Z1Z2_large_int <- function(k, n, dig=128)
   
   return(list(e_k_n=e_k_n, run.time = Sys.time()-start.time))
 }        
+
+
+# Exact (for k=3)
+pareto_P_enumerate <- function(n, k=3)
+{
+  n.pareto <- rep(0, n)
+  p <- perms(1:n)
+  n.perms <- factorial(n)
+  for(i1 in 1:n.perms)
+    for(i2 in 1:n.perms)
+      for(i3 in 1:n.perms)
+      {
+        v <- matrix(as.double(t(p[c(i1,i2,i3),])), ncol = 3)
+        n.pareto[length(get_pareto_optimal_vecs(v)$pareto.inds)] <- n.pareto[length(get_pareto_optimal_vecs(v)$pareto.inds)] + 1
+      }
+
+  print(n.pareto)        
+  n.pareto <- n.pareto / n.perms^k
+  p_k_n <- sum((1:n) * n.pareto) / n
+  p_k_n2 <- sum(((1:n)^2) * n.pareto) 
+  v_k_n <- p_k_n2 - (p_k_n*n)^2  
+  
+  
+  return(list(p_k_n=p_k_n, v_k_n=v_k_n))
+}
 
 
