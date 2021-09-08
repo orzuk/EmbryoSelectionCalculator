@@ -1,6 +1,9 @@
 library(cubature) # for multi-dimensional integration
 library(iterpc)
 library(Rmpfr) # arbitrary precision
+library(pracma)
+# library(VeryLargeIntegers)
+
 
 # Function for counting pareto-optimal vectors 
 # Compute Pareto optimal probability under independence with simulations 
@@ -174,6 +177,11 @@ pareto_P2 <- function(n, k)
 {
   if( k == 1)
     return(1/n)
+  
+  load("p_k_n_big_tab.Rdata")  # pre-computed (for speed)
+  if((dim(p_k_n_big_tab)[1] >= n) & (dim(p_k_n_big_tab)[2] >= k))
+    return(  p_k_n_big_tab[n,k] )
+  
   p <- 0
   for(i in c(1:n))
     p <- p + pareto_P2(i, k-1)
@@ -358,21 +366,31 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
 {
   start_time <- Sys.time()
   my.n <- n # give from outside
-  if(vectorize)
-  {
-    print("Vectorize")
-    V <- cubintegrate(f = pareto_P_var_integrand_v, lower = rep(0, 2*k), upper = rep(1, 2*k), method = integral_method, nVec = 128) # vectorInterface=TRUE "hcubature") # integrate   
-  }  else
-    V <- cubintegrate(f = pareto_P_var_integrand, lower = rep(0, 2*k), upper = rep(1, 2*k), method = integral_method) # "hcubature") # integrate   
+#  if(vectorize)
+#  {
+#    print("Vectorize")
+#    V <- cubintegrate(f = pareto_P_var_integrand_v, lower = rep(0, 2*k), upper = rep(1, 2*k), method = integral_method, nVec = 128) # vectorInterface=TRUE "hcubature") # integrate   
+#  }  else
+#    V <- cubintegrate(f = pareto_P_var_integrand, lower = rep(0, 2*k), upper = rep(1, 2*k), method = integral_method) # "hcubature") # integrate   
   
   
   # New: Use combinatorial   
-  
+  print("Compute e_n_k")
+  load("e_k_n_big_tab.Rdata")
+  if(e_k_n_big_tab[k,n] >= 0)
+    e_k_n <- e_k_n_big_tab[k,n]
+  else
+  {  
+    e_k_n <- as.numeric(as.character(pareto_E_Z1Z2_python(as.integer(k), as.integer(n))))
+    e_k_n_big_tab[k,n] <- e_k_n
+    save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata") # update file 
+  }
+  print("Compute p_n_k")
   p_n_k <- pareto_P2(n, k)
-  print(paste0("e_{n,k}=", round(V$integral, 6), " , p_{n,k}=", round(p_n_k, 6), 
-               " , p_{n,k}^2=", round(p_n_k^2, 6), " , COV_{n,k}=", round(V$integral - p_n_k^2, 6)))
+  print(paste0("e_{n,k}=", round(e_k_n, 6), " , p_{n,k}=", round(p_n_k, 6), 
+               " , p_{n,k}^2=", round(p_n_k^2, 6), " , COV_{n,k}=", round(e_k_n - p_n_k^2, 6)))
   
-  return(list(V = n * p_n_k * (1-p_n_k) + nchoosek(n, 2) * (V$integral - p_n_k^2), run.time = Sys.time() - start_time))
+  return(list(V = n * p_n_k * (1-p_n_k) + nchoosek(n, 2) * (e_k_n - p_n_k^2), run.time = Sys.time() - start_time))
 }
 
 
@@ -382,26 +400,28 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
 #cubintegrate(f = pareto_P_var_integrand, lower = rep(0, 2*k), upper = rep(1, 2*k), method = "hcubature") # integrate   
 
 # Probability that the two first vectors are in teh Pareto-front
-pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.prec=FALSE)
+pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.prec=FALSE, dig=128)
 {
   start.time <- Sys.time()
   max.val <- 0
   e_k_n <- 0
-  
+  S1 <- 0
+  S2 <- 0 
+  S3 <- 0
   
   if(mulit.prec==TRUE)
   {
-    dig <- 128
+#    dig <- 128
     e_k_n <- mpfr(0, dig)
     kk <- mpfr(k, dig)
     nn <- mpfr(n, dig)
     run.vec <- mpfr(c(0:(n-2)), dig)
   }
   
+  e_k_n_vec <- rep(0, (n-2)^3)
   ctr <- 1
   if(alternate.flag)  # sum (a+1,b,c,d) and (a,b,c+1,d) together
   {
-    e_k_n_vec <- rep(0, (n-2)^3)
     for(a in seq(0, n-3, 2)) # take only even values !!! 0:(n-3))  # don't take the last a !!!
       for(b in 0:(n-3-a))
         for(c in 0:(n-3-a-b))
@@ -478,7 +498,6 @@ pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.
           for(c in 0:(n-2-a-b))
           {
             d <- n-2-a-b-c
-            #        print(c(a,b,c,d))
             if(log.flag == FALSE)
               e_k_n <- e_k_n + (-1)^(a+b) * multichoose(c(a,b,c,d)) * 
                 ( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k ) / ( (a+c+1)*(b+c+1)*(a+b+c+2) )^k  # naive implementation. Overflow for large n
@@ -495,8 +514,21 @@ pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.
               #              e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
               #            } else
               #            {
+
+              # New: Split into three terms
               log.frac <- log( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k )  - k * (log(a+c+1) + log(b+c+1) + log(a+b+c+2))  # log-based implementation
+              L1 <- k * (log(a+b+2*c+2) - log(a+c+1) - log(b+c+1) - log(a+b+c+2))  # log-based implementation
+              L2 <- k * ( - log(a+c+1) - log(a+b+c+2))  # log-based implementation
+              L3 <- k * ( - log(b+c+1) - log(a+b+c+2))  # log-based implementation
+              
               log.fact <- lfactorial(n-2) -sum(lfactorial(c(a,b,c,d)))
+              e_k_n_vec[ctr] <- (-1)^(a+b) * exp(log.fact + L2) # set S2
+              ctr <- ctr + 1
+              S1 <- S1 + (-1)^(a+b) * exp(log.fact + L1)
+              S2 <- S2 + (-1)^(a+b) * exp(log.fact + L2)
+              S3 <- S3 + (-1)^(a+b) * exp(log.fact + L3)
+              
+              
               e_k_n <- e_k_n + (-1)^(a+b) * exp(log.fact + log.frac)
               #              print(paste0("Add: (a,b,c,d)= ", paste0(c(a,b,c,d), collapse=","), ", Val=", round( (-1)^(a+b) * exp(log.fact + log.frac), 5)))
               #            }
@@ -507,22 +539,86 @@ pareto_E_Z1Z2 <- function(k, n, log.flag = FALSE, alternate.flag = FALSE, mulit.
   }
   #  print("Max term:")
   #  print(max.val)
-  e_k_n_vec <- 0
+#  e_k_n_vec <- 0
+  
+  
+  
+  print(paste0("S1=", round(S1, 5), " ; S2=", round(S2, 5))) # , " ; S3=", round(S3, 5)))
+  print(paste0("SUM=", round(S1-2*S2, 5), " ; e_k_n=", round(e_k_n, 5)))
+  
   return(list(e_k_n=e_k_n, e_k_n_vec=e_k_n_vec[1:ctr], run.time = Sys.time()-start.time))
 }        
 
 
 
-# Test function: 
-k=3; n=3;  pareto_E_Z1Z2(k,n, FALSE);  pareto_E_Z1Z2(k,n, TRUE)$e_k_n; pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
+# Get the lcm of 1,2,..,n
+lcm_first_large_int <- function(n)
+{
+  first_primes <- as.numeric(VeryLargeIntegers::primes(n, test = "MR", iter = 10, bar=FALSE)) # get all primes 
+  
+  lcm <- as.vli(1)
+  for(i in 1:length(first_primes))
+  {
+    lcm <- lcm * as.vli(first_primes[i]) ^ as.vli((log(n)%/%log(first_primes[i])))
+  }
+  return(lcm)
+}
 
-k=2; n=20;  A <-  pareto_E_Z1Z2(k,n, TRUE); C <- pareto_E_Z1Z2(k,n, TRUE, FALSE, TRUE); #  B <- pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
-print(A$e_k_n)
-#print(B)
-print(C$e_k_n)
-print(C$run.time)
 
-pareto_P2(n, k)
-pareto_P2(n, k)^2
+# Get float a/b for a,b big integers
+divide_big_integers <- function(a, b)
+{
+  log.diff <- as.numeric(as.character(log10(a) - log10(b)))
+  
+  return( 10^log.diff * as.numeric(paste0("0.", as.character(a))) / as.numeric(paste0("0.", as.character(b))))
+  
+}
+
+
+
+# Do computation with large integers package
+pareto_E_Z1Z2_large_int <- function(k, n, dig=128)
+{
+  start.time <- Sys.time()
+  max.val <- 0
+
+  print("Start:")
+  n_factorial_vec <- vli(n-1) # prepare in advance
+  for(i in c(1:(n-1)))
+    n_factorial_vec[[i]] <- factvli(max(1, i-1)) # 0!=1!=1
+  max_denom_lcm = lcm_first_large_int(n)^(3*k)
+  
+  e_k_n_int <- as.vli(0)
+  for(a in 0:(n-2))
+  {
+    if(a%%10 == 0)
+      print(a)
+    for(b in 0:(n-2-a))
+    {
+      for(c in 0:(n-2-a-b))              
+      {
+        d <- n-2-a-b-c
+#        numerator <- (n_factorial_vec[[n-1]] / (n_factorial_vec[[a+1]] * n_factorial_vec[[b+1]] * n_factorial_vec[[c+1]] * n_factorial_vec[[d+1]])) * 
+#          (-1)^(a+b) * as.vli( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k ) 
+        numerator <- (n_factorial_vec[[n-1]] / (n_factorial_vec[[a+1]] * n_factorial_vec[[b+1]] * n_factorial_vec[[c+1]] * n_factorial_vec[[d+1]])) * 
+           ( (a+b+2*c+2)^k - (a+c+1)^k - (b+c+1)^k ) 
+        denominator <- as.vli(( (a+c+1)*(b+c+1)*(a+b+c+2) )^k)  # naive implementation. Overflow for large n
+        
+        if( (a+b)%%2 == 0)
+          e_k_n_int <- e_k_n_int + numerator * (max_denom_lcm / denominator)
+        else
+          e_k_n_int <- e_k_n_int - numerator * (max_denom_lcm / denominator)
+        
+      }
+    }
+  }
+  
+  print(e_k_n_int)
+  print(max_denom_lcm)
+  
+  e_k_n <- divide_big_integers(e_k_n_int, max_denom_lcm)
+  
+  return(list(e_k_n=e_k_n, run.time = Sys.time()-start.time))
+}        
 
 

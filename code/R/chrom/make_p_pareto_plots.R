@@ -8,6 +8,11 @@ library(Rfast)
 library(ecr)
 library(latex2exp)
 
+Sys.setenv(RETICULATE_PYTHON = "C:\\ProgramData\\Anaconda3")  # SEt python path 
+library(reticulate) # calling python function
+source_python("pareto.py")
+
+
 
 main_dir = 'C:\\Users\\Or Zuk\\Documents\\GitHub\\EmbryoSelectionCalculator\\code\\R\\chrom\\'
 setwd(main_dir) 
@@ -186,44 +191,80 @@ dev.off()
 
 
 
-# 4. Compare distribution to Poisson
-
-
-n.vec <- c(100, 500, 1000)
+# 4.Figure 4: Compare distribution to Poisson
+n.vec <- c(100, 200, 400) # Computing var takes a really long time 
+# n.vec <- c(20, 40, 60) # A small example 
 k.vec <- c(3, 5, 7)
-iters <- 10000
+iters <- 100000
+#n.vec <- c(100)
+#k.vec <- c(3)
 
-n.vec <- c(100)
-k.vec <- c(3)
 
-for(n in 500) # n.vec)
-  for(k in 4) # k.vec)
+
+# e_k_n_big_tab = matrix(-1, 20, 1000)  # Store all pre-computed values 
+
+# p_k_n_big_tab = matrix(-1, 20, 1000)  # Store all pre-computed values 
+# p_k_n_big_tab = pareto_P_mat(10000, 200)
+# save(p_k_n_big_tab, file = "p_k_n_big_tab.Rdata")
+# save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata")
+# load("e_k_n_big_tab.Rdata")
+
+png(paste0(figs_dir, 'p_k_n_dist.png'), 
+            res=300,  width = 300, height=300, units="mm")
+par(mfrow=c(3,3), mai = c(0.0, 0.0, 0.0, 0.0), mar=c(4,6,2,0)+.1)  # mar=c(5,6,4,1)+.1)  # For subplots  # mai = c(1, 0.1, 0.1, 0.1)
+# par(mfrow=c(3,3))  # For subplots  # mai = c(1, 0.1, 0.1, 0.1)
+for(n in n.vec)
+  for(k in k.vec)
   {
     print(paste0("Run n=", n, " k=", k))
-    simpar <- pareto_P_sim(n, k, iters)
-    simrange <- min(simpar$n.pareto):max(simpar$n.pareto)
+    sim.file.name <- paste0("sim_n_", n, "_k_", k, "_iters_", as.integer(iters), ".Rdata")
     
-    dist.pareto <- table(simpar$n.pareto)/iters
-    y.max <- max(max(dist.pareto), max(dpois(simrange, simpar$p.pareto*n)))*1.01
+    if(file.exists(sim.file.name))
+      load(sim.file.name)
+    else
+    {
+      simpar <- pareto_P_sim(n, k, iters)
+      simrange <- min(simpar$n.pareto):max(simpar$n.pareto)
+      save(simpar, simrange, n, k, iters, 
+           file = paste0("sim_n_", n, "_k_", k, "_iters_", as.integer(iters), ".Rdata"))
+    }
     
-    print("Compute Var integral:")
+    
+    print("Compute Var combinatorial (int):")
     my.n <- n # must update outside function!!
     V <- pareto_P_var(k, n)
-        
-    png(paste0(figs_dir, 'p_', as.character(k), '_', as.character(n), '_dist.png'), 
-        res=300,  width = 300, height=300, units="mm")
-    par(mar=c(5,6,4,1)+.1) # increase left margin
-    plot(as.numeric(names(dist.pareto)), as.numeric(dist.pareto), ylim=c(0, y.max), 
-         xlab=TeX(paste0("$Z_{", as.character(k), ",", as.character(n), "}$")), 
-         ylab=TeX("$Prob.$"), pch=19, cex.lab=2, cex.axis=2)
-    grid()
-    lines(simrange, dpois(simrange, simpar$p.pareto*n), col="red", lwd=1.5)
+    print("Computed Var!!!")
 
-    lines(simrange, dnorm(simrange, mean = simpar$p.pareto*n, sd = sqrt(V$V)), col="blue", lwd=1.5)# new: normal approximation    
+    dist.pareto <- table(simpar$n.pareto)/iters
+    dist.pois <- dpois(simrange, simpar$p.pareto*n)
+    dist.norm <- dnorm(simrange, mean = simpar$p.pareto*n, sd = sqrt(V$V))
+    y.max <- max(max(dist.pareto), max(dist.pois), max(dist.norm))*1.01
     
-    dev.off()
+        
+#    png(paste0(figs_dir, 'p_', as.character(k), '_', as.character(n), '_dist.png'), 
+#        res=300,  width = 300, height=300, units="mm")
+#    par(mar=c(5,6,4,1)+.1) # increase left margin
+    plot(as.numeric(names(dist.pareto)), as.numeric(dist.pareto), ylim=c(0, y.max), 
+         pch=19, cex.lab=2, cex.axis=2, xlab="", ylab="")
+    if(n == n.vec[3])
+      title(xlab=TeX(paste0("$k=", as.character(k), "$")), cex.lab=2) 
+    if(k == k.vec[1])
+      title(ylab=TeX(paste0("$n=", as.character(n), "$")), cex.lab=2)
+    grid()
+    lines(simrange, dist.pois, col="red", lwd=1.5)
+    lines(simrange, dist.norm, col="blue", lwd=1.5)# new: normal approximation    
+    
+    if((n == n.vec[3]) & (k == k.vec[3])) # add legend
+      legend(min(simrange), 0.99*y.max, lwd=rep(1, 3), c("Sim.", "Poisson", "Gaussian"), cex=2, 
+             col=c("black", "red", "blue"), lty=c(NA,1,1), pch=c(19, NA, NA), box.lwd = 0,box.col = "white",bg = "white")
+  
+#    legend(min(simrange), 0.99*max.y, lwd=rep(1, num.k),  paste0(rep("k=", num.k), as.character(1:num.k)), col=chr.col.vec, 
+#           cex=2, box.lwd = 0,box.col = "white",bg = "white") 
+    
+      
+#    dev.off()
   }
-
+dev.off()
 
   
 
@@ -273,6 +314,39 @@ plot( -log(1-alpha) * med / log(c(1:n)))
 
 
 
+
+
+
+
+# Test function: 
+k=3; n=3;  pareto_E_Z1Z2(k,n, FALSE);  pareto_E_Z1Z2(k,n, TRUE)$e_k_n; pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
+
+k=2; n=10;  A <-  pareto_E_Z1Z2(k,n, TRUE); B <-  pareto_E_Z1Z2(k,n, FALSE); # C <- pareto_E_Z1Z2(k,n, TRUE, FALSE, TRUE); #  B <- pareto_E_Z1Z2(k,n, TRUE, TRUE)$e_k_n;
+print(A$e_k_n)
+print(B$e_k_n)
+print(C$e_k_n)
+print(C$run.time)
+
+pareto_P2(n, k)
+pareto_P2(n, k)^2
+
+
+plot(sort(abs(A$e_k_n_vec)))
+
+I <- order(-abs(A$e_k_n_vec))
+ev <- A$e_k_n_vec[I]
+NEG <- which(ev < 0)
+
+plot(abs(ev))
+points(NEG, abs(ev[NEG]), col="red")
+
+cv <- cumsum(ev)
+plot(cumsum(ev))
+
+k=2; n=10;  A <- pareto_E_Z1Z2(k,n, TRUE); print(A$e_k_n); B <- pareto_E_Z1Z2_python(as.integer(k), as.integer(n)); print(as.numeric(as.character(B))) 
+k=2; n=20;  A <- pareto_E_Z1Z2(k,n, TRUE); print(A$e_k_n)
+k=2; n=30;  A <- pareto_E_Z1Z2(k,n, TRUE); print(A$e_k_n)
+k=2; n=40;  A <- pareto_E_Z1Z2(k,n, TRUE); print(A$e_k_n)
 
 
 
