@@ -12,7 +12,9 @@ pareto_P_sim <- function(n, k, iters=1000)
   n.pareto <- rep(0, iters)
   for(i in 1:iters)
     n.pareto[i] <- length(get_pareto_optimal_vecs(matrix(runif(n*k), nrow=n, ncol=k))$pareto.inds) # Simulate vectors 
-  return(list(n.pareto=n.pareto, p.pareto=mean(n.pareto) / n))
+  p.pareto <- mean(n.pareto) / n
+  return(list(n.pareto=n.pareto, p.pareto=p.pareto, 
+              e12.pareto = p.pareto^2 + (var(n.pareto) - n*p.pareto*(1-p.pareto)) / nchoosek(n, 2)))
 }
 
 
@@ -393,6 +395,30 @@ pareto_P_var <- function(k, n, integral_method = "cuhre", vectorize = FALSE) # "
   return(list(V = n * p_n_k * (1-p_n_k) + nchoosek(n, 2) * (e_k_n - p_n_k^2), run.time = Sys.time() - start_time))
 }
 
+
+pareto_E_Z1Z2_R <- function(k, n)
+{
+  load("e_k_n_big_tab.Rdata")
+  if(e_k_n_big_tab[k,n] >= 0)
+    e_k_n <- e_k_n_big_tab[k,n]
+  else
+  {  
+    e_k_n <- as.numeric(as.character(pareto_E_Z1Z2_python(as.integer(k), as.integer(n))))
+    e_k_n_big_tab[k,n] <- e_k_n
+    save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata") # update file 
+  }
+  return(e_k_n)
+}
+
+# Pearson correlation
+pareto_P_corr <- function(k, n)
+{
+  p_n_k <- pareto_P2(n, k)
+  e_k_n <- pareto_E_Z1Z2_R(k, n)
+  return( (e_k_n - p_n_k^2)  / (p_n_k*(1-p_n_k)) )
+}
+  
+  
 
 #V1 <- pareto_P_var(2, 3)
 #V2 <- pareto_P_var(2, 3, "cuhre")

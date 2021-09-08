@@ -31,6 +31,12 @@ def lcm_first(n):
 
 def pareto_E_Z1Z2_python(k, n, dps = 100):
     start = time.time()
+
+    if n == 1:
+        print("Error! No correlation for n<2")
+        return -1
+    if n == 2:  # here combinatorial sum is problematic
+        return 1-2.0**(1-k)
     mp.dps = dps  # set significant digits
     n_factorial_vec = [math.factorial(i) for i in range(n-1)]  # prepare in advance
     max_denom_lcm = lcm_first(n)**(3*k)

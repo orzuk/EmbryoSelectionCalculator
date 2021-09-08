@@ -207,7 +207,7 @@ iters <- 100000
 # p_k_n_big_tab = pareto_P_mat(10000, 200)
 # save(p_k_n_big_tab, file = "p_k_n_big_tab.Rdata")
 # save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata")
-# load("e_k_n_big_tab.Rdata")
+load("e_k_n_big_tab.Rdata")
 
 png(paste0(figs_dir, 'p_k_n_dist.png'), 
             res=300,  width = 300, height=300, units="mm")
@@ -236,8 +236,8 @@ for(n in n.vec)
     print("Computed Var!!!")
 
     dist.pareto <- table(simpar$n.pareto)/iters
-    dist.pois <- dpois(simrange, simpar$p.pareto*n)
-    dist.norm <- dnorm(simrange, mean = simpar$p.pareto*n, sd = sqrt(V$V))
+    dist.pois <- dpois(simrange, p_k_n_big_tab[n,k]*n) # use Poisson approximation 
+    dist.norm <- dnorm(simrange, mean = p_k_n_big_tab[n,k]*n, sd = sqrt(V$V))
     y.max <- max(max(dist.pareto), max(dist.pois), max(dist.norm))*1.01
     
         
@@ -268,9 +268,21 @@ dev.off()
 
   
 
+
+
 #####################################################
 ### Ended figures ### 
 #####################################################
+
+
+# Compute correlations
+corr.mat <- matrix(0, 100, 5)
+for(k in (1:5))
+  for(n in (1:100))
+  {
+    print(paste0("Run corr n=", as.character(n), " k=", as.character(k)))
+    corr.mat[n, k] <- pareto_P_corr(k, n)    
+  }
 
 # Compute upper-bound m_k
 library(pracma)
