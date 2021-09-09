@@ -210,7 +210,18 @@ iters <- 100000
 # save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata")
 load("e_k_n_big_tab.Rdata")
 
-png(paste0(figs_dir, 'p_k_n_dist.png'), 
+binom_flag <- FALSE
+if(binom_flag)
+{
+  outfile <- 'p_k_n_dist_binom.png'
+  dist_leg <- "Binom"
+} else
+{
+  outfile <- 'p_k_n_dist_poisson.png'
+  dist_leg <- "Poisson"
+}
+
+png(paste0(figs_dir, outfile), 
             res=300,  width = 300, height=300, units="mm")
 par(mfrow=c(3,3), mai = c(0.0, 0.0, 0.0, 0.0), mar=c(4,6,2,0)+.1)  # mar=c(5,6,4,1)+.1)  # For subplots  # mai = c(1, 0.1, 0.1, 0.1)
 
@@ -239,7 +250,10 @@ for(n in n.vec)
     print("Computed Var!!!")
 
     dist.pareto <- table(simpar$n.pareto)/iters
-    dist.pois <- dpois(simrange, p_k_n_big_tab[n,k]*n) # use Poisson approximation 
+    if(binom_flag)
+      dist.pois <- dbinom(simrange, n, p_k_n_big_tab[n,k]) # use Poisson approximation 
+    else
+      dist.pois <- dpois(simrange, p_k_n_big_tab[n,k]*n) # use Poisson approximation 
     dist.norm <- dnorm(simrange, mean = p_k_n_big_tab[n,k]*n, sd = sqrt(V$V))
     y.max <- max(max(dist.pareto), max(dist.pois), max(dist.norm))*1.01
     
@@ -258,7 +272,7 @@ for(n in n.vec)
     lines(simrange, dist.norm, col="blue", lwd=1.5)# new: normal approximation    
     
     if((n == n.vec[length(n.vec)]) & (k == k.vec[length(k.vec)])) # add legend
-      legend(min(simrange), 0.99*y.max, lwd=rep(1, 3), c("Sim.", "Poisson", "Gaussian"), cex=2, 
+      legend(min(simrange), 0.99*y.max, lwd=rep(1, 3), c("Sim.", dist_leg, "Gaussian"), cex=2, 
              col=c("black", "red", "blue"), lty=c(NA,1,1), pch=c(19, NA, NA), box.lwd = 0,box.col = "white",bg = "white")
   
 #    legend(min(simrange), 0.99*max.y, lwd=rep(1, num.k),  paste0(rep("k=", num.k), as.character(1:num.k)), col=chr.col.vec, 
