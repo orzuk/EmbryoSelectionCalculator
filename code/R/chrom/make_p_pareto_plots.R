@@ -61,7 +61,7 @@ png(paste0(figs_dir, 'p_k_n_fixed_k.png')  , res=300,  width = 300, height=300, 
 par(mar=c(5,6,4,1)+.1) # increase left margin
 plot(log(n.vec), log(mu_k_n_mat[n.vec,k]), col="white", ylim=c(-0.0, 1.01*max.y), 
      xlab=TeX("$log(n)$"), ylab=TeX("$log(\\mu_{k,n})$"), cex.lab=2, cex.axis=2)
-grid()
+grid(col = "darkgray", lwd=1.5)
 chr.col.vec <- rep("", num.k)
 for(k in c(1:num.k))
 {
@@ -70,7 +70,7 @@ for(k in c(1:num.k))
   lines(log(n.vec), (k-1) * log(log(n.vec)) - lfactorial(k-1) ,  col =  rgb(cont.col.vec[k,1], cont.col.vec[k,2], cont.col.vec[k,3]))  # exact values 
 }
 legend(0, 0.99*max.y, lwd=rep(1, num.k),  paste0(rep("k=", num.k), as.character(1:num.k)), col=chr.col.vec, 
-       cex=2, box.lwd = 0,box.col = "white",bg = "white") 
+       cex=2, box.lwd = 0,box.col = "white",bg = "white", pch = rep(10, num.k), lty=rep(1, num.k))
 dev.off()
 
 
@@ -145,7 +145,7 @@ png(paste0(figs_dir, 'p_clogn_n.png')  , res=300,  width = 300, height=300, unit
 par(mar=c(5,6,4,1)+.1) # increase left margin
 plot(log(n_k_n[,1]), rep(1, length(n_k_n[,1])), col="white", xlim=c(0, log(max.n)), ylim=c(-6, 0.01), 
      xlab=TeX("$log(n)$"), ylab=TeX("$log(p_{c log n, n})$"), cex.lab=2, cex.axis=2) # , main=TeX("$log(p_{c log n, n})$  vs. $n$")) # type="l", # log(max(mu_k_n[!is.infinite(mu_k_n)]))
-grid()
+grid(col = "darkgray", lwd=1.5)
 for(c in c(1:num.c))
 {
   max.n.ind <- max(which(n_k_n[,c] <= max.n))
@@ -163,6 +163,8 @@ dev.off()
 
 # Figure 3: Comparison of the continuous and binary probability 
 #jpeg(paste0(figs_dir, 'p_k_n_comparison.jpg'))
+n.vec <- round(10^seq(0, 7, 0.1))
+max.y <- max(log(mu_k_n_mat[,1:num.k]))
 min.y <- min(log(p_k_n_mat))
 png(paste0(figs_dir, 'p_k_n_comparison.png')  , res=300,  width = 300, height=300, units="mm")
 par(mar=c(5,6,4,1)+.1) # increase left margin
@@ -178,12 +180,12 @@ for(k in c(1:k.plt))
 }
 plot(log(n.vec), rep(0, length(n.vec)), col="white", ylim=c(min.y, 0.1), 
      xlab="log(n)", ylab=TeX("$log(P_{Pareto})$"), cex.lab=2, cex.axis=2)
-grid()
+grid(col = "darkgray", lwd=1.5)
 for(k in c(1:k.plt))
 {
-  lines(log(n.vec), log(p_k_n_mat[n.vec,k]), type="l", col=chr.k.col.vec[k])
-  lines(log(n.vec), log(q_k_n_mat[n.vec,k]), col=chr.k.col.vec[k], lty=5)
-  lines(log(n.vec), log(r_k_n_mat[n.vec,k]), col=chr.k.col.vec[k], lty=3)
+  lines(log(n.vec), log(p_k_n_mat[n.vec,k]), type="l", col=chr.k.col.vec[k], lwd=2)
+  lines(log(n.vec), log(q_k_n_mat[n.vec,k]), col=chr.k.col.vec[k], lty=5, lwd=2)
+  lines(log(n.vec), log(r_k_n_mat[n.vec,k]), col=chr.k.col.vec[k], lty=3, lwd=2)
 }
 legend(-0.5, -12, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), 
        col=chr.k.col.vec[1:k.plt], cex=2, box.lwd = 0,box.col = "white",bg = "white") 
@@ -208,9 +210,10 @@ iters <- 100000
 # p_k_n_big_tab = pareto_P_mat(10000, 200)
 # save(p_k_n_big_tab, file = "p_k_n_big_tab.Rdata")
 # save(e_k_n_big_tab, file = "e_k_n_big_tab.Rdata")
+load("p_k_n_big_tab.Rdata")
 load("e_k_n_big_tab.Rdata")
 
-binom_flag <- FALSE
+binom_flag <- TRUE
 if(binom_flag)
 {
   outfile <- 'p_k_n_dist_binom.png'
@@ -267,7 +270,7 @@ for(n in n.vec)
       title(xlab=TeX(paste0("$k=", as.character(k), "$")), cex.lab=2) 
     if(k == k.vec[1])
       title(ylab=TeX(paste0("$n=", as.character(n), "$")), cex.lab=2)
-    grid()
+    grid(col = "darkgray", lwd=1.5)
     lines(simrange, dist.pois, col="red", lwd=1.5)
     lines(simrange, dist.norm, col="blue", lwd=1.5)# new: normal approximation    
     
@@ -285,8 +288,10 @@ dev.off()
 
   
 # Figure 5: Compute correlations
-corr.mat <- matrix(0, 200, 10)
-for(k in (1:6))
+k.plt <- 10
+corr.mat <- matrix(0, 200, k.plt)
+for(k in (1:k.plt))
+# for(k in (1:6))
   for(n in (1:100))
   {
     if(n%%10 == 0)
@@ -294,19 +299,62 @@ for(k in (1:6))
     corr.mat[n, k] <- pareto_P_corr(k, n)    
   }
 
+k.col.vec <- matrix(0, k.plt, 3) # rep('', num.k)
+chr.k.col.vec <- rep("", k.plt)
+for(k in c(1:k.plt))
+{
+  k.col.vec[k,] <- (pal((k-1) / (k.plt-1))) / 255
+  chr.k.col.vec[k] <-  rgb(k.col.vec[k,1], k.col.vec[k,2], k.col.vec[k,3])
+}
 
-png(paste0(figs_dir, 'corr_k_n.png')  , res=300,  width = 300, height=300, units="mm")
+
+# Plot rho_{n,k}
+log.flag <- TRUE
+if(log.flag)
+{
+  x.vec <- log(2:100)
+  x.lab <- "log(n)"
+  legend.x <- c(3.8, 0.6)
+} else
+{
+  x.vec <- 2:100
+  x.lab <- "n"
+  legend.x <- c(80, 0)
+}
+
+png(paste0(figs_dir, 'corr_k_n', rep('_log', log.flag),'.png'), res=300,  width = 300, height=300, units="mm")
 par(mar=c(5,6,4,1)+.1) # increase left margin
-k.plt <- 5
-plot(2:100, -sign(corr.mat[2:100,1]) * log(abs(corr.mat[2:100,1])), pch=19, 
-     xlab="n", ylab=TeX("$-sign(\\rho) \\cdot log(| \\rho |)$"), ylim=c(-7,7), col=chr.k.col.vec[1])
-for(k in (2:5))
-  points(2:100, -sign(corr.mat[2:100,k]) * log(abs(corr.mat[2:100, k])), pch=19, col=chr.k.col.vec[k])
-grid()
-legend(80, 2, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), lty=rep(NA, k.plt), pch=rep(19, k.plt), 
-       col=chr.k.col.vec[1:k.plt], cex=1.5, box.lwd = 0,box.col = "white", bg = "white") 
+k.plt <- 10
+plot(x.vec, -sign(corr.mat[2:100,1]) * log(abs(corr.mat[2:100,1])), pch=19, 
+     xlab=x.lab, ylab=TeX("$-sign(\\rho) \\cdot log(| \\rho |)$"), ylim=c(-7,7), col=chr.k.col.vec[1], cex.lab=2, cex.axis=2)
+for(k in (2:k.plt))
+  points(x.vec, -sign(corr.mat[2:100,k]) * log(abs(corr.mat[2:100, k])), pch=19, col=chr.k.col.vec[k])
+grid(col = "darkgray", lwd=1.5)
+legend(legend.x[1], 3, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), lty=rep(NA, k.plt), pch=rep(19, k.plt), 
+       col=chr.k.col.vec[1:k.plt], cex=2, box.lwd = 0,box.col = "white", bg = "white") 
 dev.off()
 
+# Plot n * rho_{n,k}
+png(paste0(figs_dir, 'overdispersion_k_n', rep('_log', log.flag), '.png')  , res=300,  width = 300, height=300, units="mm")
+par(mar=c(5,6,4,1)+.1) # increase left margin
+k.plt <- 10
+plot(x.vec, ((2:100)-1) * corr.mat[2:100,1], pch=19, 
+     xlab=x.lab, ylab=TeX("$Overdispersion$"), ylim=c(-1.1,2), col=chr.k.col.vec[1], cex.lab=2, cex.axis=2)
+for(k in (2:k.plt))
+  points(x.vec,  ((2:100)-1) * corr.mat[2:100, k], pch=19, col=chr.k.col.vec[k])
+grid(col = "darkgray", lwd=1.5)
+legend(legend.x[2], 2.1, lwd=rep(1, k.plt),  paste0(rep("k=", k.plt), as.character(c(1:k.plt))), lty=rep(NA, k.plt), pch=rep(19, k.plt), 
+       col=chr.k.col.vec[1:k.plt], cex=2, box.lwd = 0,box.col = "white", bg = "white") 
+dev.off()
+
+
+#plot(2:100, -sign(corr.mat[2:100,1]) * log(((2:100)-1) * abs(corr.mat[2:100,1])), pch=19, 
+#     xlab="n", ylab=TeX("$-sign(OD) \\cdot log(| OD|)$"), ylim=c(-7,7), col=chr.k.col.vec[1])
+#for(k in (2:5))
+#  points(2:100, -sign(corr.mat[2:100,k]) * log(((2:100)-1) * abs(corr.mat[2:100, k])), pch=19, col=chr.k.col.vec[k])
+#grid()
+#legend(80, 2, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), lty=rep(NA, k.plt), pch=rep(19, k.plt), 
+#       col=chr.k.col.vec[1:k.plt], cex=1.5, box.lwd = 0,box.col = "white", bg = "white") 
 
 
 
@@ -314,6 +362,122 @@ dev.off()
 ### Ended figures ### 
 #####################################################
 
+
+
+# Check correlated (dependent) case: 
+max.k <- 5; n = 100; iters <- 10000; num.rho <- 100
+p_k_n_ind <- pareto_P_mat(n, max.k)
+p_k_n_mat <- matrix(rep(1/n, num.rho*max.k), nrow=num.rho)
+for(k in (2:max.k))
+{
+  rho.vec <- linspace(-1/(k-1)+0.0000000000001, 1-0.00000000000001, num.rho)
+  for(i in 1:num.rho)
+  {
+    print(paste0("k=", k, " i=", i))
+    p_k_n_mat[i,k] <- pareto_P_sim_cor(n, k, rho.vec[i], iters)$p.pareto
+  }
+}
+#plot(rho.vec, p_k_n_vec, type="l")
+#lines(rho.vec, rep(p_k_n_ind, num.rho), col="red")
+  
+
+png(paste0(figs_dir, 'p_k_n_correlated.png')  , res=300,  width = 300, height=300, units="mm")
+par(mar=c(5,6,4,1)+.1) # increase left margin
+plot(rho.vec, p_k_n_mat[,1],  col="white", xlab=TeX("$\\rho$"), ylab=TeX("$log(p_{k,n}(\\rho))$"), 
+     xlim=c(-1,1), ylim=c(-5, 0), cex.lab=2, cex.axis=2)
+for(k in (2:max.k))
+{
+  rho.vec <- linspace(-1/(k-1)+0.0000000000001, 1-0.00000000000001, num.rho)
+  lines(rho.vec, log(p_k_n_mat[,k]),  col=chr.k.col.vec[k])
+}
+points(rep(0, k.plt-1), log(p_k_n_ind[n,2:max.k]), col="black", pch=19)
+points(1, log(p_k_n_ind[n,1]), col="blue", pch=19)
+grid(col = "darkgray", lwd=1.5)
+legend(0.5, 0, lwd=rep(1, k.plt-1),  paste0(rep("k=", k.plt-1), as.character(c(2:k.plt))), lty=rep(1, k.plt-1), pch=rep(NA, k.plt-1), 
+       col=chr.k.col.vec[2:k.plt], cex=2, box.lwd = 0,box.col = "white", bg = "white") 
+dev.off()
+
+# lines(rho.vec, rep(log(p_k_n_ind), num.rho), col="red")
+
+
+
+
+# Figure 6: Compute for different values of rho, the rate at which mu_{k,n} grows. 
+# We know that for rho = 0 we get mu_{k,n} ~ (log n)^k so on a log-log-plot we get a slope of k
+iters <- 5000;
+k <- 2 
+few.rho <- 10
+#few.rho.vec <- linspace(-1/(k-1)+0.0000000000001, 1-0.00000000000001, few.rho)
+few.rho.vec <- linspace(-1/(k-1)+0.0000000000001 + 2/few.rho, 1-0.00000000000001, few.rho)
+
+num.n <- 15; n.vec <- round(logspace(1, 4, num.n))
+mu_k_n_rho_mat <- matrix(rep(1/n, few.rho*num.n), nrow=few.rho)
+
+for(i in 1:few.rho)
+  for(n in 1:num.n)
+  {
+    print(paste0("Run sim: i=", i, " n=", n))
+    mu_k_n_rho_mat[i,n] <- pareto_P_sim_cor(n.vec[n], k, few.rho.vec[i], iters)$p.pareto * n.vec[n]
+  }
+
+
+few.rho.col.vec <- matrix(0, few.rho, 3) # rep('', num.k)
+chr.few.rho.col.vec <- rep("", few.rho)
+for(rho in c(1:few.rho))
+{
+  few.rho.col.vec[rho,] <- (pal((rho-1) / (few.rho-1))) / 255
+  chr.few.rho.col.vec[rho] <-  rgb(few.rho.col.vec[rho,1], few.rho.col.vec[rho,2], few.rho.col.vec[rho,3])
+}
+
+png(paste0(figs_dir, 'p_k_n_correlated_vs_n.png')  , res=300,  width = 300, height=300, units="mm")
+par(mar=c(5,6,4,1)+.1) # increase left margin
+plot(log(n.vec), mu_k_n_rho_mat[1,],  col="white", xlab=TeX("$log(n)$"), ylab=TeX("$\\mu_{k,n}(\\rho)$"), 
+     ylim=range(mu_k_n_rho_mat), cex.lab=2, cex.axis=2)
+for(rho in (1:few.rho))
+{
+  lines(log(n.vec), mu_k_n_rho_mat[rho,],  col=chr.few.rho.col.vec[rho], lwd=1.5)
+  points(log(n.vec), mu_k_n_rho_mat[rho,],  col=chr.few.rho.col.vec[rho], pch=19)
+}
+grid(col = "darkgray", lwd=1.5)  
+
+#legend.vec <-  rep(NA, few.rho)
+#for(i in 1:few.rho)
+#{
+#  s <- "$\\rho = blabla$"
+##  s <- paste0("$\\rho=", as.character(round(few.rho.vec[i], 3)),"$")
+#  legend.vec[i] <- TeX(s) # TeX(paste0("$\\rho=", as.character(round(few.rho.vec[i], 3)),"$"))
+#  
+#}
+
+legend.vec <- rep(NA, few.rho)
+s <- rep("", few.rho)
+for(i in 1:few.rho)
+{
+  s[i] <- paste0("$\\rho = ", as.character(round(few.rho.vec[i], 3)), "$")
+  legend.vec[i] <- TeX(s[i])
+}
+# legend.vec <- c(TeX(s[1]), TeX(s[2]), TeX(s[3]), TeX(s[4]), TeX(s[5]))
+legend(log(n.vec[1]), max(mu_k_n_rho_mat[1:few.rho,]), lwd=rep(1, few.rho), legend.vec[1:(few.rho)], 
+       lty=rep(1.5, few.rho), pch=rep(19, few.rho-1), 
+       col=chr.few.rho.col.vec[1:(few.rho)], cex=2, box.lwd = 0, box.col = "white", bg = "white") 
+
+#lll <- rep(TeX("$\\rho = blabla$"), few.rho)
+#legend(log(n.vec[1]), max(n.vec),  lll, lwd=rep(1,few.rho), col=chr.k.col.vec, # c("red", "blue"), 
+#       lty=rep(NA, few.rho), pch=rep(19, few.rho), 
+#       cex=2, box.lwd = 0, box.col = "white", bg = "white")
+dev.off()
+
+
+
+
+
+
+
+
+
+
+#################################################
+###############################################
 
 
 # Compute upper-bound m_k

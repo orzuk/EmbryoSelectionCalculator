@@ -9,7 +9,7 @@ library(BH)
 library(ecr)
 library(Rfast)
 
-source("parto_funcs.R")
+source("pareto_funcs.R")
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
 
 

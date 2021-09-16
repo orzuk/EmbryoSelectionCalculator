@@ -2,6 +2,7 @@ library(cubature) # for multi-dimensional integration
 library(iterpc)
 library(Rmpfr) # arbitrary precision
 library(pracma)
+library(mvtnorm)
 # library(VeryLargeIntegers)
 
 
@@ -16,6 +17,22 @@ pareto_P_sim <- function(n, k, iters=1000)
   return(list(n.pareto=n.pareto, p.pareto=p.pareto, 
               e12.pareto = p.pareto^2 + (var(n.pareto) - n*p.pareto*(1-p.pareto)) / nchoosek(n, 2)))
 }
+
+
+# Function for counting pareto-optimal CORRELATED vectors 
+# Compute Pareto optimal probability under correlation rho with simulations 
+pareto_P_sim_cor <- function(n, k, rho=0, iters=1000)
+{
+  Sigma <- (1-rho)*diag(k) + matrix(rho, nrow=k, ncol=k)
+  n.pareto <- rep(0, iters)
+  for(i in 1:iters)
+    n.pareto[i] <- length(get_pareto_optimal_vecs(rmvnorm(n, rep(0, k), Sigma))$pareto.inds) # Simulate vectors 
+
+  p.pareto <- mean(n.pareto) / n
+  return(list(n.pareto=n.pareto, p.pareto=p.pareto, 
+              e12.pareto = p.pareto^2 + (var(n.pareto) - n*p.pareto*(1-p.pareto)) / nchoosek(n, 2)))
+}
+
 
 
 
