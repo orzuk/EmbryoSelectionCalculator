@@ -24,6 +24,7 @@ figs_dir = paste0(main_dir, 'Pareto\\') #  C:\\Users\\Or Zuk\\Dropbox\\EmbryoSel
 start.time <- Sys.time()
 
 col.vec <- c("red", "green", "blue", "orange", "purple", "pink", "yellow", "cyan", "black", "brown")
+pal <- colorRamp(c("red", "blue"))
 
 max.n <- 10000000 # 00
 
@@ -44,7 +45,6 @@ r_k_n_mat <- pareto_P_binary_mat(max.n, max.k, TRUE)
 
 # Figure 1: Fixed k plot: 
 # pal <- colorRamp(c("black", "lightgray"))
-pal <- colorRamp(c("red", "blue"))
 num.k <- 10
 # cont.col.vec <- c('black', 'brown4',  'red',  'orange', 'yellow3')
 
@@ -357,6 +357,35 @@ dev.off()
 #       col=chr.k.col.vec[1:k.plt], cex=1.5, box.lwd = 0,box.col = "white", bg = "white") 
 
 
+
+# Diagnostic figure: plot e_k_n vs. p_k_n^2
+load("p_k_n_big_tab.Rdata")
+load("e_k_n_big_tab.Rdata")
+
+k.plt <- 10
+k.col.vec <- matrix(0, k.plt, 3) # rep('', num.k)
+chr.k.col.vec <- rep("", k.plt)
+for(k in c(1:k.plt))
+{
+  k.col.vec[k,] <- (pal((k-1) / (k.plt-1))) / 255
+  chr.k.col.vec[k] <-  rgb(k.col.vec[k,1], k.col.vec[k,2], k.col.vec[k,3])
+}
+
+
+png(paste0(figs_dir, 'e_k_n_vs_p_k_n_sqr.png')  , res=300,  width = 300, height=300, units="mm")
+#plot(log(e_k_n_big_tab[2,1:100]) - 2*log(p_k_n_big_tab[1:100,2]), 
+#      col="white", ylim=c(-3,3))
+plot(log(e_k_n_big_tab[2,1:100]) - 2*log(p_k_n_big_tab[1:100,2]), 
+     col="white", ylim=c(-0.1,0.1), xlab="n", ylab=TeX("$log(e_{k.n})-2 log(p_{k,n})$"))
+
+for(k in 2:10)
+{
+  lines(log(e_k_n_big_tab[k,2:100]) - 2*log(p_k_n_big_tab[2:100,k]), 
+       col=chr.k.col.vec[k])
+}
+legend(0, 0.1, lwd=rep(1, k.plt-1),  paste0(rep("k=", k.plt-1), as.character(c(2:k.plt))), lty=rep(1, k.plt-1), 
+       col=chr.k.col.vec[1:k.plt], cex=1, box.lwd = 0,box.col = "white", bg = "white") 
+dev.off()
 
 #####################################################
 ### Ended figures ### 

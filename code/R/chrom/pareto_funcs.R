@@ -436,6 +436,50 @@ pareto_P_corr <- function(k, n)
 }
   
   
+# Alternative computation for k=2
+pareto_E_Z1Z2_K_2 <- function(n, fast.flag = TRUE)
+{
+  r <- 0
+  
+  if(fast.flag)
+  {
+    recip.cum.vec <- rev(cumsum(1 / seq(n, 1, -1)))[2:n] # reverse order
+    recip.vec <- 1 / c(1:(n-1))
+    r <- sum(recip.vec * recip.cum.vec)
+  } 
+  else  # slow O(n^2) loop
+  {
+  for(i in c(1:(n-1)))
+    for(j in c((i+1):n))
+      r <- r + 1/(i*j)
+  }  
+  return(  r*2 / (n*(n-1)) )
+  
+}
+
+
+# Alternative computation for k=3. Try: WRONG! (gives a reasonable approximation)
+pareto_E_Z1Z2_K_3 <- function(n)
+{
+  r <- 0
+  for(i in c(1:(n-1)))
+    for(j in c((i+1):n))
+      r <- r + (pareto_P2(i, 2) * pareto_P2(j, 2) )  # Approximation, these are not independent.
+  
+  return(  r*2 / (n*(n-1)) )
+  
+#    r <- 0
+#  for(i in c(1:(n-3)))
+#    for(j in c((i+1):(n-2)))
+#      for(k in c((j+1):(n-1)))
+#        for(l in c((k+1):n))
+#          r <- r + 1/(i*j*k*l)
+  
+#  return(  r*2 / (n*(n-1)) )
+  
+}
+
+
 
 #V1 <- pareto_P_var(2, 3)
 #V2 <- pareto_P_var(2, 3, "cuhre")

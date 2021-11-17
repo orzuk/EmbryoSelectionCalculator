@@ -6,12 +6,18 @@ library(matrixcalc)
 library(matrixNormal)
 library(Rfast)
 library(ecr)
-setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") 
+
+# root_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom"
+# figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
+root_dir = "C:/Users/Or Zuk/Documents/GitHub/EmbryoSelectionCalculator/code/R/chrom"
+
+figs_dir = paste0(substr(root_dir, 1, tail(str_locate_all(root_dir, "/")[[1]][,1], 3)[1]), "Figures/chrom")
+
+setwd(root_dir)
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
 
-figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
 start.time <- Sys.time()
 
 
