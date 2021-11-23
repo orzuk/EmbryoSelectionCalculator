@@ -236,8 +236,8 @@ pareto_P_approx <- function(n, k, order=2)
 }
 
 
-# Compute pareto probability for binary vectors (consider ties)
-pareto_P_binary <- function(n, k, strong = FALSE)
+# Compute Pareto probability for binary vectors (consider ties)
+pareto_P_binary_old <- function(n, k, strong = FALSE)
 {
   if(strong)
     return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k))^(n-1)) )
@@ -246,7 +246,26 @@ pareto_P_binary <- function(n, k, strong = FALSE)
 }
 
 
-# Compute pareto probability for binary vectors for a matrix of n and k values (consider ties)
+# Compute Pareto probability for binary vectors (consider ties).
+pareto_P_binary <- function(n, k, strong = FALSE)
+{
+    return( sum( dbinom(0:k, k, 0.5) * (1 - 0.5^c(0:k) + (1-strong)*0.5^k  )^(n-1)) )
+}
+
+
+# Compute log Pareto probability for binary vectors (consider ties). Smart implementation avoiding underflow
+pareto_P_binary_log <- function(n, k, strong = FALSE)
+{
+  log.vec <- lfactorial(k) - k*log(2) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log( 1 - 0.5^c(0:k) + (1-strong)*0.5^k )
+
+  max.log <- max(log.vec)
+  
+  return( log( sum(exp( log.vec - max.log  ))) + max.log )
+  
+}
+
+
+# Compute Pareto probability for binary vectors for a matrix of n and k values (consider ties)
 pareto_P_binary_mat <- function(max.n, max.k, strong = FALSE)
 {
   P.mat <- matrix(0, nrow=max.n, ncol=max.k)
@@ -270,7 +289,7 @@ pareto_P_binary_mat <- function(max.n, max.k, strong = FALSE)
   return(P.mat)
 }
 
-# Comptue the matrix of alpha_j,k coefficients and the vector of m_k coefficients
+# Compute the matrix of alpha_j,k coefficients and the vector of m_k coefficients
 pareto_alpha_mat_m_vec <- function(max.k, log.flag = FALSE)
 {
   log.m.k = c(0, (1:(max.k-1)) * ( log(1:(max.k-1)) - 1) - lfactorial(1:(max.k-1)))
