@@ -144,7 +144,7 @@ for(c in c(1:num.c))
 png(paste0(figs_dir, 'p_clogn_n.png')  , res=300,  width = 300, height=300, units="mm")
 par(mar=c(5,6,4,1)+.1) # increase left margin
 plot(log(n_k_n[,1]), rep(1, length(n_k_n[,1])), col="white", xlim=c(0, log(max.n)), ylim=c(-6, 0.01), 
-     xlab=TeX("$log(n)$"), ylab=TeX("$log(p_{c log n, n})$"), cex.lab=2, cex.axis=2) # , main=TeX("$log(p_{c log n, n})$  vs. $n$")) # type="l", # log(max(mu_k_n[!is.infinite(mu_k_n)]))
+     xlab=TeX("$log(n)$"), ylab=TeX("$log(p_{k_n, n})$"), cex.lab=2, cex.axis=2) # , main=TeX("$log(p_{c log n, n})$  vs. $n$")) # type="l", # log(max(mu_k_n[!is.infinite(mu_k_n)]))
 grid(col = "darkgray", lwd=1.5)
 for(c in c(1:num.c))
 {
@@ -158,6 +158,7 @@ for(c in c(1:num.c))
 }
 legend(0, -4, lwd=rep(1, num.c),  paste0(rep("c=", num.c), as.character(c.vec)), col=chr.c.col.vec[1:num.c], 
        pch = rep(10, num.c), lty=rep(1, num.c), cex=2, box.lwd = 0,box.col = "white",bg = "white") 
+mtext("b.", side=3, adj=0, line=1.2, cex=4, font=2); 
 dev.off()
 
 
@@ -179,7 +180,7 @@ for(k in c(1:k.plt))
   chr.k.col.vec[k] <-  rgb(k.col.vec[k,1], k.col.vec[k,2], k.col.vec[k,3])
 }
 plot(log(n.vec), rep(0, length(n.vec)), col="white", ylim=c(min.y, 0.1), 
-     xlab="log(n)", ylab=TeX("$log(P_{Pareto})$"), cex.lab=2, cex.axis=2)
+     xlab="log(n)", ylab=TeX("$log(p_{k,n})$"), cex.lab=2, cex.axis=2)
 grid(col = "darkgray", lwd=1.5)
 for(k in c(1:k.plt))
 {
@@ -189,6 +190,7 @@ for(k in c(1:k.plt))
 }
 legend(-0.5, -12, lwd=rep(1, k.plt),  paste0(rep("k=", 5), as.character(c(1:k.plt))), 
        col=chr.k.col.vec[1:k.plt], cex=2, box.lwd = 0,box.col = "white",bg = "white") 
+mtext("a.", side=3, adj=0, line=1.2, cex=4, font=2); 
 # cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 dev.off()
 

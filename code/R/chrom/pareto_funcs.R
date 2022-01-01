@@ -254,13 +254,28 @@ pareto_P_binary <- function(n, k, strong = FALSE)
 
 
 # Compute log Pareto probability for binary vectors (consider ties). Smart implementation avoiding underflow
-pareto_P_binary_log <- function(n, k, strong = FALSE)
+pareto_P_binary_log <- function(n, k, strong = FALSE, p=0.5)
+{
+#  log.vec <- lfactorial(k) - k*log(2) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log( 1 - 0.5^c(0:k) + (1-strong)*0.5^k )
+  log.vec = log( 1 - p^c(0:k) + (1-strong)*p^c(0:k)*(1-p)^(k:0))   # log.vec = log( 1 - 0.5^c(0:k) + (1-strong)*0.5^k)  # for p=0.5
+###  log.vec = log( 1 - 0.5^c(0:k) + (1-strong)*0.5^k)  # for p=0.5
+  zero.inds = which(log.vec == 0)
+  log.vec[zero.inds] = -p^(zero.inds-1)  + (1-strong)*p^(zero.inds-1)*(1-p)^(k-zero.inds+1)  # -0.5^(zero.inds-1)  + (1-strong)*0.5^k # change here to general p 
+###  log.vec[zero.inds] = -0.5^(zero.inds-1)  + (1-strong)*0.5^k # change here to general p 
+  log.vec <- lfactorial(k) + (0:k)*log(p) + (k:0)*log(1-p) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log.vec #   log.vec <- lfactorial(k) - k*log(2) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log.vec
+###  log.vec <- lfactorial(k) + k*log(0.5)  -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log.vec #   log.vec <- lfactorial(k) - k*log(2) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log.vec
+  max.log <- max(log.vec)
+#  return( log( sum(exp( log.vec - max.log  ))) + max.log )
+  
+  return( list(log.p.n.k = log( sum(exp( log.vec - max.log  ))) + max.log, log.vec = log.vec ) )
+}
+
+
+pareto_P_binary_log_vec <- function(n, k, strong = FALSE)
 {
   log.vec <- lfactorial(k) - k*log(2) -lfactorial(0:k) - rev(lfactorial(0:k))  + (n-1) * log( 1 - 0.5^c(0:k) + (1-strong)*0.5^k )
-
-  max.log <- max(log.vec)
   
-  return( log( sum(exp( log.vec - max.log  ))) + max.log )
+  return(log.vec - max(log.vec))
   
 }
 
