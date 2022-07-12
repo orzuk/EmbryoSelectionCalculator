@@ -26,3 +26,5 @@ For any questions, please contact Shai Carmi (shai.carmi@mail.huji.ac.il) or Or 
 E. Karavani, O. Zuk, D. Zeevi, G. Atzmon, N. Barzilai, N.C. Stefanis, A. Hatzimanolis, N. Smyrnis, D. Avramopoulos, L. Kruglyak, M. Lam, T. Lencz and S. Carmi , Cell 179(6), p. 1424-1435 (2019)<br>
 https://www.sciencedirect.com/science/article/pii/S0092867419312103 
  
+[2] Utility of polygenic embryo screening for disease depends on the selection strategy <br>
+T. Lencz, D. Backenroth, E. Granot-Hershkovitz, A. Green, K. Gettler, J.H. Cho, O. Weissbrod, O. Zuk and S. Carmi
