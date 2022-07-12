@@ -28,3 +28,4 @@ https://www.sciencedirect.com/science/article/pii/S0092867419312103
  
 [2] Utility of polygenic embryo screening for disease depends on the selection strategy <br>
 T. Lencz, D. Backenroth, E. Granot-Hershkovitz, A. Green, K. Gettler, J.H. Cho, O. Weissbrod, O. Zuk and S. Carmi
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8510582/
