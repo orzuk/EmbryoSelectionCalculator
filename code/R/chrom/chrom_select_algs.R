@@ -173,12 +173,11 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
   L <- dim(cur.X)[1]
   if(is.null(L)) # one dimensional array 
     L = 1
-
   
   if(loss.params$lipschitz)
   {
-    A.plus <- colMaxs(tensor_vector_prod(pmax(X,0), loss.params$lipschitz.alpha, 3))
-    A.minus <- colMins(tensor_vector_prod(pmin(X,0), loss.params$lipschitz.alpha, 3))  
+    A.plus <- rowMaxs(tensor_vector_prod(pmax(X,0), loss.params$lipschitz.alpha, 3), value = TRUE)
+    A.minus <- rowMins(tensor_vector_prod(pmin(X,0), loss.params$lipschitz.alpha, 3), value = TRUE)  
     A.plus.cum <- rev(cumsum(rev(A.plus)))
     A.minus.cum <- rev(cumsum(rev(A.minus)))
   }
@@ -234,20 +233,18 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
       new.c <- rbind(new.c[union.X$pareto.inds1,], add.c[union.X$pareto.inds2,]) # need to modify here indices 
     }
     
-    if(is.null(dim(new.X)[1]))
-        L.vec[i] = 1
-    else
-      L.vec[i] = dim(new.X)[1]  
+    if(is.null(dim(new.X)[1])) L.vec[i] = 1 else L.vec[i] = dim(new.X)[1]  
     # New: get-rid of some vectors that can't develop into optimal ones: 
     if(loss.params$lipschitz)
     {
 #      new.v <- sweep( B[[b+1]]$pareto.opt.X, 2, B[[b]]$pareto.opt.X[j,], "+")
       new.loss.vec <- loss_PS_mat_rcpp(new.X, loss.type, loss.params)
+      print(paste("MAX LOSS:", max(new.loss.vec), "MIN LOSS:", min(new.loss.vec), "Diff: ", max(new.loss.vec)-min(new.loss.vec)))
+      print(paste("A.plus:", A.plus.cum[i], "A.minus:", A.minus.cum[i]))
       good.inds <- which(new.loss.vec <= min(new.loss.vec) + A.plus.cum[i] - A.minus.cum[i])  
-      new.c <- new.c[good.inds]
+      new.c <- new.c[good.inds, ]
       new.X <- new.X[good.inds, ]
     }
-      
         
     cur.X <- new.X
     cur.c <- new.c

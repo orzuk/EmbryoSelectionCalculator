@@ -69,12 +69,12 @@ params$C = 2 # max(params$c.vec)
 Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
 X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
 
+loss.params$lipschitz <- FALSE
 sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 loss.params$lipschitz <- TRUE
-loss.params$lipschitz.alpha <- rep(1, params$T)
+loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
 sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 sol.bb.lip2 <- optimize_C(X, loss.type, loss.params, "branch_and_bound_lipschitz_middle") #optimize_C_branch_and_bound_lipschitz_middle
-
 
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))

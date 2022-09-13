@@ -245,6 +245,31 @@ hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
   return(H)    
 }
 
+###############################################################
+# Lipschitz constant for a loss
+# Input: 
+# X.c.mat - a matrix with multiple vectors of length C
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# alpha.vec - a vector of lipschitz constants for each input coordinate of the loss  
+#
+###############################################################
+
+lipschitz_loss_PS <- function(loss.type, loss.params)
+{
+  if(loss.type == "quant")
+    alpha.vec <- loss.params$theta
+  
+  if((loss.type == "stabilizing") || (loss.type == "balancing"))  # Global constant is infinity. May get local constants with bound on X
+    alpha.vec <- rep(Inf, len(loss.params$theta))    
+
+  if(loss.type == 'disease')  # weighted disease probability 
+    alpha.vec <- loss.params$theta / sqrt(2*pi*(1-loss.params$h.ps))
+
+  return(alpha.vec)  
+}
 
 # Mutiply a tensor by matrix 
 # X - a 3rd-prder tensor of dims: M*C*T
