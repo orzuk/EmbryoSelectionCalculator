@@ -1,9 +1,9 @@
 # Sample the Poygenic Scores of set of embryos
 # Input: 
-# X.PP - polygenic scores of parental grandfather
-# X.PM - polygenic scores of parental grandmother
-# X.MP - polygenic scores of marental grandfather
-# X.MM - polygenic scores of marental grandmother
+# X.PP - polygenic scores of paternal grandfather
+# X.PM - polygenic scores of paternal grandmother
+# X.MP - polygenic scores of maternal grandfather
+# X.MM - polygenic scores of maternal grandmother
 # n - number of embryos
 #
 sample.embryos <- function(X.PP, X.PM, X.MP, X.MM, n)

@@ -6,7 +6,7 @@ library(mvtnorm)
 # library(VeryLargeIntegers)
 
 
-# Function for counting pareto-optimal vectors 
+# Function for counting Pareto-optimal vectors 
 # Compute Pareto optimal probability under independence with simulations 
 pareto_P_sim <- function(n, k, iters=1000)
 {
@@ -32,7 +32,6 @@ pareto_P_sim_cor <- function(n, k, rho=0, iters=1000)
   return(list(n.pareto=n.pareto, p.pareto=p.pareto, 
               e12.pareto = p.pareto^2 + (var(n.pareto) - n*p.pareto*(1-p.pareto)) / nchoosek(n, 2)))
 }
-
 
 
 

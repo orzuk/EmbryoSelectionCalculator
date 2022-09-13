@@ -19,7 +19,7 @@ chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 
 
-
+###############################################################
 # Simulate a 3rd-order tensor of polygenic scores risk 
 # Inputs: 
 # M - number of embryos
@@ -32,6 +32,7 @@ chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,
 # 
 # Output: 
 # X - a 3rd order tensor with scores. X[i,j,k] is score of embryo i in block j for trait k
+###############################################################
 simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, Sigma.K, sigma.blocks, prev) # vectorize later    Z, K, E, n_sims = 1000) {
 {
   X = array(0, dim=c(M, C, T))
@@ -117,6 +118,7 @@ compute_X_C_mat <- function(X, C.mat)
 
 
 
+###############################################################
 # The loss 
 # Input: 
 # X.c - a vector of length C
@@ -125,6 +127,7 @@ compute_X_C_mat <- function(X, C.mat)
 #
 # Output: 
 # loss - a scalar 
+###############################################################
 loss_PS <- function(X.c, loss.type, loss.params)
 {
 #  X.c <- compute_X_C_mat(X, C)
@@ -147,6 +150,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
 
 
 
+###############################################################
 # The loss for vectors 
 # Input: 
 # X.c.mat - a matrix with multiple vectors of length C
@@ -155,6 +159,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
 #
 # Output: 
 # loss.vec - a vector of losses for each row of X.c.mat  
+###############################################################
 loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 {
   #  X.c <- compute_X_C_mat(X, C)
@@ -177,10 +182,11 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 
 
 
-
+###############################################################
 # The gradient for the loss.
 # Return a matrix of size: M*C
 # Can also add a regularizer 
+###############################################################
 grad_loss_PS <- function(X, C, loss.type, loss.params)
 {
   M = dim(X)[1]
@@ -269,9 +275,14 @@ tensor_matrix_prod <- function(X, A, ax=3)
 }
 
 
-# Mutiply a tensor by vector
+#############################################
+# Multiply a tensor by vector
+# Input: 
 # X - a 3rd-order tensor
 # v - a vector 
+# ax - on which axis to run the summation of multiplication 
+# Output: 
+# A matrix R such that R_{i,j} = \sum_k X_{ijk} v_k
 tensor_vector_prod <- function(X, v, ax=3)
 {
   if(ax == 3)
@@ -295,12 +306,7 @@ project_stochastic_matrix <- function(C.mat)
   
 
 
-
-
-  
-
-
-# Compute a vector of coordinate-wise lipschitz constants
+# Compute a vector of coordinate-wise lipschitz constants for a loss function
 compute_lipschitz_const <- function(loss.type, loss.params)
 {
   T <- length(loss.params$theta)
@@ -321,11 +327,12 @@ compute_lipschitz_const <- function(loss.type, loss.params)
   return (lip)
 }
 
+
 # compute the maximal contribution of each vector to the loss
-get_tensor_lipshitz_params <- function(X, loss.type, loss.params)  
+get_tensor_lipschitz_params <- function(X, loss.type, loss.params)  
 {
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
-  lip <- compute_lipschitz_const(loss.type, loss.params)
+  lip <- compute_lipschitz_const(loss.type, loss.params)  # vector of lipschitz constants
     
   X.loss.mat <- matrix(rep(0, M*C), nrow=M, ncol=C)
   lip.pos.mat <- X.loss.mat

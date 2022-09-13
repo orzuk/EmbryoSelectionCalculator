@@ -152,7 +152,7 @@ List get_pareto_optimal_vecs_rcpp(NumericMatrix X_mat)
 }
 
 
-// Add a vector to a matrix of already pareto optimal vectors 
+// Add a vector to a matrix of already Pareto-optimal vectors 
 // [[Rcpp::export]]
 NumericMatrix update_pareto_optimal_vecs_rcpp(NumericVector x, NumericMatrix X_mat)
 {
@@ -503,7 +503,7 @@ List optimize_C_branch_and_bound_rcpp(arma::cube X, string loss_type, List loss_
     // New: add an upperbound to the number of vectors to keep 
     if(!loss_params.containsElementNamed("max.L"))
       loss_params["max.L"] = 10000; 
-    if(as<long>(loss_params["max.L"]) == -1) // indicae no max to pile size 
+    if(as<long>(loss_params["max.L"]) == -1) // indicae no max to pile size. Can be very heavy computationally!
       loss_params["max.L"] = 99999999999999;
 
 //    Dimension dim = X.attr("dim");
