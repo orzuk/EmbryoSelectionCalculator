@@ -181,6 +181,34 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 
 
 
+###############################################################
+# The loss for vectors 
+# Input: 
+# X - 3rd order tensor
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# upperbound - an upper-bound on the optimal loss  
+# lowerbound - an lower-bound on the optimal loss  
+###############################################################
+bound_loss_PS_mat <- function(X, loss.type, loss.params)
+{
+  M <- dim(X)[1]
+  T <- dim(X)[3]
+  max.X <- rep(0, T)
+  min.X <- rep(0, T)
+  for(b in 1:M) # loop on blocks
+  {
+    max.X <- max.X + colMaxs(X[b,,], value = TRUE) # Get maximum at each coordinate 
+    min.X <- min.X + colMins(X[b,,], value = TRUE) # Get minimum at each coordinate 
+  }
+  upper = loss_PS(min.X, loss.type, loss.params)
+  lower = loss_PS(max.X, loss.type, loss.params)
+  return(list(upperbound=upper, lowerbound=lower, max.X=max.X, min.X=min.X))
+}  
+
+
 
 ###############################################################
 # The gradient for the loss.
@@ -271,7 +299,7 @@ lipschitz_loss_PS <- function(loss.type, loss.params)
   return(alpha.vec)  
 }
 
-# Mutiply a tensor by matrix 
+# Multiply a tensor by matrix 
 # X - a 3rd-prder tensor of dims: M*C*T
 # A - a matrix. Dimension depends on axis to multiply by: 
 # ax=3: A is a matrix of size M*C
@@ -353,7 +381,18 @@ compute_lipschitz_const <- function(loss.type, loss.params)
 }
 
 
+#############################################
 # compute the maximal contribution of each vector to the loss
+# Input: 
+# X - a 3rd-prder tensor of dims: M*C*T
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# X.loss.mat - matrix of losses for each scores vector (for given block and copy)
+# lip.pos.mat - matrix of A+ values
+# lip.neg.mat - matrix of A- values
+#############################################
 get_tensor_lipschitz_params <- function(X, loss.type, loss.params)  
 {
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
@@ -371,6 +410,7 @@ get_tensor_lipschitz_params <- function(X, loss.type, loss.params)
     }
   return(list(X.loss.mat=X.loss.mat, lip.pos.mat=lip.pos.mat, lip.neg.mat=lip.neg.mat))
 }
+
 
 # Check if loss function is monotonic
 is_monotone_loss <- function(loss.type)

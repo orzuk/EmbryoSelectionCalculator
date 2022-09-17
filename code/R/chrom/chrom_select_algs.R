@@ -275,7 +275,24 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 
 
 
-# A branch and bound algorithm for Lipschitz loss functions
+###############################################################
+# A branch and bound algorithm for finding the X combination with minimal loss for Lipschitz loss functions
+# Run the optimization to find the optimal C:
+# Input: 
+# X - a 3D tensor of block genetic scores
+# loss.type - type of loss function
+# loss.params - parameters determining the loss function
+# 
+# Output: 
+# list with optimal choices:
+# - opt.X 
+# - opt.c 
+# - opt.loss 
+# - loss.vec 
+# - L.vec 
+# - pareto.opt.X 
+# - pareto.opt.c
+###############################################################
 optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.params)
 {
   # Add timing: 
@@ -294,7 +311,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   M.vec.cum <- c(0, cumsum(M.vec))
   B <- vector("list", loss.params$n.blocks) 
   n.pareto <- rep(0,  loss.params$n.blocks)
-  opt.X.upperbound <- rep(0, T)
+  opt.X.upperbound <- rep(0, T) # A 'good' vector with low score that is an upper-bound for L*
   opt.c.upperbound <- c()
   for(b in 1:loss.params$n.blocks) # get Pareto-optimal vectors for each block 
   {
@@ -302,9 +319,9 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     opt.X.upperbound <- opt.X.upperbound + B[[b]]$opt.X
     opt.c.upperbound <- c(opt.c.upperbound,  B[[b]]$opt.c)
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
-    n.pareto[b] <-  length(B[[b]]$loss.vec)
+    n.pareto[b] <-  length(B[[b]]$loss.vec)  # number of vectors in each block
   }
-  L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001
+  L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
   
   print(paste0("cpp=", loss.params$cpp, " b&b time (sec.): ", bb.time))
@@ -326,7 +343,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     max.X <- rep(0, T)
     for(b2 in c((b+1):loss.params$n.blocks))
       max.X <- max.X + B[[b2]]$max.X # This reduction can be applied on both sides 
-    B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])
+    B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])   # lower-bound on the final score L* of every selection of current X 
     for(i in 1:n.pareto[b])
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
