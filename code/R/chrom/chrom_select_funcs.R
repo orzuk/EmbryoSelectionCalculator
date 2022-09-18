@@ -182,7 +182,7 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 
 
 ###############################################################
-# The loss for vectors 
+# Compute upper and lower bounds for the optimal loss for a monotone loss function 
 # Input: 
 # X - 3rd order tensor
 # loss.type - what loss to compute 
@@ -192,8 +192,13 @@ loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 # upperbound - an upper-bound on the optimal loss  
 # lowerbound - an lower-bound on the optimal loss  
 ###############################################################
-bound_loss_PS_mat <- function(X, loss.type, loss.params)
+bound_monotone_loss_PS_mat <- function(X, loss.type, loss.params)
 {
+  if(!is_monotone_loss(loss.type))
+  {
+    print("Error! Can't give bounds for non-monotone losses!!!")
+    return(NULL)
+  }
   M <- dim(X)[1]
   T <- dim(X)[3]
   max.X <- rep(0, T)
@@ -208,6 +213,40 @@ bound_loss_PS_mat <- function(X, loss.type, loss.params)
   return(list(upperbound=upper, lowerbound=lower, max.X=max.X, min.X=min.X))
 }  
 
+
+
+
+###############################################################
+# Compute upper and lower bounds for the optimal loss for a monotone loss function 
+# Input: 
+# X - 3rd order tensor
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# upperbound - an upper-bound on the optimal loss  
+# lowerbound - an lower-bound on the optimal loss  
+###############################################################
+bound_monotone_loss_pareto_blocks_PS_mat <- function(X, loss.type, loss.params)
+{
+  if(!is_monotone_loss(loss.type))
+  {
+    print("Error! Can't give bounds for non-monotone losses!!!")
+    return(NULL)
+  }
+  M <- dim(X)[1]
+  T <- dim(X)[3]
+  max.X <- rep(0, T)
+  min.X <- rep(0, T)
+  for(b in 1:M) # loop on blocks
+  {
+    max.X <- max.X + colMaxs(X[b,,], value = TRUE) # Get maximum at each coordinate 
+    min.X <- min.X + colMins(X[b,,], value = TRUE) # Get minimum at each coordinate 
+  }
+  upper = loss_PS(min.X, loss.type, loss.params)
+  lower = loss_PS(max.X, loss.type, loss.params)
+  return(list(upperbound=upper, lowerbound=lower, max.X=max.X, min.X=min.X))
+}  
 
 
 ###############################################################
