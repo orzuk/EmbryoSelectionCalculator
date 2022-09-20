@@ -167,7 +167,6 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   
   par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors. Needs fixing 
-  #  par.X.R <- get_pareto_optimal_vecs(X[1,,])
   cur.c <- t(t(par.X$pareto.inds))  # Format matrix 
   cur.X <- par.X$pareto.X
   L <- dim(cur.X)[1]

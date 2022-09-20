@@ -73,8 +73,11 @@ loss.params$lipschitz <- FALSE
 sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 loss.params$lipschitz <- TRUE
 loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
-sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
-sol.bb.lip2 <- optimize_C(X, loss.type, loss.params, "branch_and_bound_lipschitz_middle") #optimize_C_branch_and_bound_lipschitz_middle
+# sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_lipschitz_middle") #optimize_C_branch_and_bound_lipschitz_middle
+
+if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
+  print("ERROR!!! TWO ALGORITHMS GAVE DIFFERENT RESULTS!!!")
 
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
@@ -82,6 +85,9 @@ plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log
       main=paste0("Number of vectors considered "))
 
 lines(1:params$M, params$C ** c(1:params$M), type="l", col="red") # compare to gain just form embryo selection 
+
+lines(1:params$M, sol.bb$L.vec, type="l", col="red") # compare to gain just form embryo selection 
+
 
 legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
        c( "Branch.Bound", "Exp."), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),

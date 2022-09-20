@@ -78,7 +78,6 @@ compare_pareto_P <- function(n.vec, k, C=2, iters = 1000)
 #}
 
 
-
 # Check if vector x is not dominated by any vector in X.mat
 is_pareto_optimal <- function(x, X.mat)
 {
@@ -92,10 +91,10 @@ is_pareto_optimal <- function(x, X.mat)
   return( min(rowMaxs(t(replicate(n.row, x))+epsilon - X.mat, value=TRUE)) >= 0 )
 }
 
+
 # Extract only Pareto-optimal vectors in a matrix
 get_pareto_optimal_vecs <- function(X.mat, cpp.flag = FALSE)
 {
-#  cpp.flag <- FALSE
   if(cpp.flag)
   {
     par <- get_pareto_optimal_vecs_rcpp(X.mat)
@@ -114,6 +113,7 @@ get_pareto_optimal_vecs <- function(X.mat, cpp.flag = FALSE)
     return(list(pareto.X=X.mat[pareto.inds,], pareto.inds=pareto.inds))
   }
 }
+
 
 # insert a new vector x if it is not dominated by any vector in X.mat. 
 # Exclude all vectors dominated by x 
