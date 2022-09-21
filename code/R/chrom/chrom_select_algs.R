@@ -336,7 +336,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
   } else
     run.blocks <- 1:(loss.params$n.blocks-1)
   
-  for(b in run.blocks)
+  for(b in run.blocks[1:3])
   {
     block.start.time <- Sys.time()
     max.X <- rep(0, T)
@@ -361,7 +361,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
           min.loss <- new.min.loss
           i.min <- which.min(new.loss.vec)
           min.X <- new.v[i.min,]
-          min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here 
+          min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here! How? 
         }
       }
       print(paste0("merge last block time (sec.):", difftime(Sys.time() , block.start.time, units="secs")))
@@ -369,7 +369,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       print(paste0("merge time (sec.):", merge.time))
       
       return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
-    }
+    }  # end if last layer
     
     
     #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
@@ -405,8 +405,9 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     B[[b+1]]$pareto.opt.c <- new.c
     B[[b+1]]$max.X <- colMaxs(B[[b+1]]$pareto.opt.X, value = TRUE) # Update: Get maximum at each coordinate 
     if(is.matrix(B[[b+1]]$pareto.opt.X))
+    {
       n.pareto[b+1] <- dim(B[[b+1]]$pareto.opt.X)[1] # update number of vectors in next layer
-    else
+    } else
     {
       print("Only one!")
       print(B[[b+1]]$pareto.opt.X)
@@ -414,7 +415,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     }
     
     #    print(paste0("Num. Next layer: ", dim(new.X)[1]))
-    
     #        cur.X <- new.X
     #    cur.c <- new.c
     #    L.vec[i] = dim(new.X)[1]  
