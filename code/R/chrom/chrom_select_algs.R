@@ -334,9 +334,10 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     new.X <- B[[b]]$pareto.opt.X
     new.c <- B[[b]]$pareto.opt.c
   } else
-    run.blocks <- 1:(loss.params$n.blocks-1)
+    run.blocks <- 1:(loss.params$n.blocks-1)  # already discard last block
   
-  for(b in run.blocks[1:3])
+  #  for(b in run.blocks)
+  for(b in run.blocks) # [1:3])
   {
     block.start.time <- Sys.time()
     max.X <- rep(0, T)
@@ -347,7 +348,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       B[[b]]$L.lowerbound.vec[i] = loss_PS(B[[b]]$pareto.opt.X[i,] + max.X, loss.type, loss.params)  # here loss_PS should be vectorized 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
     
-    if(b == loss.params$n.blocks-1) # last layer
+    
+    if(b == loss.params$n.blocks-1) # last layer. Should be after merging?? 
     {
       min.loss <- 999999999999
       min.b <- 0
@@ -368,9 +370,9 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
       print(paste0("merge time (sec.):", merge.time))
       
-      return(list(opt.X = min.X, opt.c =min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
+      print(paste0("Finished B&B Mid. Stack Size:", dim(new.X)[1]))
+      return(list(opt.X = min.X, opt.c = min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
     }  # end if last layer
-    
     
     #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.X <- c()
@@ -392,7 +394,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
 #        print( B[[b+1]]$pareto.opt.c[new.v$pareto.inds,] )
 #      }
       new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
-                                  matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=TRUE)) )
+                                  matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=FALSE)) )
       new.X <- get_pareto_optimal_vecs(new.X) # could be costly to run again all new.X against themselves 
       if( length(new.X$pareto.inds)<=1 )
         print(paste0("Num pareto union: ", length(new.X$pareto.inds)))
@@ -418,8 +420,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     #        cur.X <- new.X
     #    cur.c <- new.c
     #    L.vec[i] = dim(new.X)[1]  
-    if(b+1 == loss.params$n.blocks)
-      print(paste0("Finished B&B Mid. Stack Size:", dim(new.X)[1]))
+
+    
   } # end loop on blocks 
   
   print("merge!")

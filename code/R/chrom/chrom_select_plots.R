@@ -73,6 +73,7 @@ loss.params$lipschitz <- FALSE
 sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 loss.params$lipschitz <- TRUE
 loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
+loss.params$n.blocks=5  # TEMP
 # sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_lipschitz_middle") #optimize_C_branch_and_bound_lipschitz_middle
 
