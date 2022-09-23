@@ -302,6 +302,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     loss.params$n.blocks <- 2  # default: divide to two blocks 
 #  lip.alpha <- compute_lipschitz_const(loss.type, loss.params)
 #  lip.tensor <- get_tensor_lipschitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors (not implemented?)
+  L.vec <- rep(0, M)
   
   # Divide to blocks: 
   M.vec <- rep(floor(M/loss.params$n.blocks), loss.params$n.blocks)
@@ -320,6 +321,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)  # number of vectors in each block
   }
+  L.vec[(M.vec.cum[1]+1):M.vec.cum[2]] = B[[1]]$L.vec  # update start 
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
   
@@ -349,31 +351,6 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= L.upperbound)
     
     
-    if(b == loss.params$n.blocks-1) # last layer. Should be after merging?? 
-    {
-      min.loss <- 999999999999
-      min.b <- 0
-      for(j in cur.good.inds)  # loop over all vectors in the current stack   
-      {
-        new.v <- sweep( B[[b+1]]$pareto.opt.X, 2, B[[b]]$pareto.opt.X[j,], "+")
-        new.loss.vec <- loss_PS_mat_rcpp(new.v, loss.type, loss.params) # use cpp for faster loss computation 
-        new.min.loss <- min(new.loss.vec)
-        if(new.min.loss < min.loss)
-        {
-          min.loss <- new.min.loss
-          i.min <- which.min(new.loss.vec)
-          min.X <- new.v[i.min,]
-          min.c <- c(B[[b]]$pareto.opt.c[j,],  B[[b+1]]$pareto.opt.c[i.min,])  # need to modify here! How? 
-        }
-      }
-      print(paste0("merge last block time (sec.):", difftime(Sys.time() , block.start.time, units="secs")))
-      merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
-      print(paste0("merge time (sec.):", merge.time))
-      
-      print(paste0("Finished B&B Mid. Stack Size:", dim(new.X)[1]))
-      return(list(opt.X = min.X, opt.c = min.c, opt.loss = min.loss, bb.time = bb.time, merge.time = merge.time))
-    }  # end if last layer
-    
     #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.X <- c()
     new.c <- c()
@@ -402,6 +379,7 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
       new.X <- new.X$pareto.X
     }  # loop on cur good inds 
     print(paste0("Merge i=", b, "L=", dim(new.c)[1]))
+    L.vec[(M.vec.cum[b+1]+1):M.vec.cum[b+2]] = dim(new.c)[1]  # update start 
     # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
@@ -465,7 +443,8 @@ optimize_C_branch_and_bound_lipschitz_middle <- function(X, loss.type, loss.para
     return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
   }
   else
-    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec), bb.time = bb.time, merge.time = merge.time))
+    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec), L.vec = L.vec,
+                bb.time = bb.time, merge.time = merge.time))
 }  
 
 
