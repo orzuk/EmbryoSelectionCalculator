@@ -23,7 +23,7 @@ start.time <- Sys.time()
 
 # Set all parameters
 params <- c()
-params$M <- 10 # 10 for fast running 22 # try full chromosomes  
+params$M <- 23 # 10 for fast running 22 # try full chromosomes  
 params$c.vec <- 2:10
 params$T <- 5 # number of traits 
 params$iters <- 100
@@ -32,7 +32,7 @@ df <- 5 # For Wishart distribution
 h.ps <- 0.3  # variance explained by the polygenic score 
 
 params$max.C = max(params$c.vec)
-sigma.blocks = chr.lengths * h.ps
+sigma.blocks = c(chr.lengths, chr.lengths) * h.ps  # allow up to 46 
 params$sigma.blocks = sigma.blocks
 Sigma <- 0.5*diag(params$T) + matrix(0.5, nrow=params$T, ncol=params$T)   # trait-correlations matrix 
 Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
@@ -43,14 +43,14 @@ loss.params$K <- c(0.01, 0.05, 0.1, 0.2, 0.3) # prevalence of each disease
 loss.params$h.ps <- rep(h.ps, params$T)
 loss.params$theta <- c(1, 1, 1, 1, 1)  # importance of each disease 
 loss.params$eta <- 0 # negative L2 regularization 
-loss.params$n.blocks <- 1
+loss.params$n.blocks <- 8
 loss.params$cpp <- TRUE  # run in cpp (faster)
 loss.params$max.L <- 10**6 # maximal number to take in B&B algorithm
 
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
-params$alg.str <- c("embryo", "branch_and_bound_lipschitz_middle") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 n.methods <- length(params$alg.str)
 gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #embryo.loss.params = loss.params
@@ -73,9 +73,7 @@ loss.params$lipschitz <- FALSE
 sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
 loss.params$lipschitz <- TRUE
 loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
-loss.params$n.blocks=5  # TEMP
-# sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
-sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_lipschitz_middle") #optimize_C_branch_and_bound_lipschitz_middle
+sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
 
 if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
 {
@@ -86,15 +84,13 @@ if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
 plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
-      main=paste0("Number of vectors considered "))
+      col="red", main=paste0("Number of vectors considered "))
 
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
-lines(1:params$M, params$C ** c(1:params$M), type="l", col="red") # compare to gain just form embryo selection 
-
-
+lines(1:params$M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
 
 legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
-       c( "Branch.Bound", "Div.Conq.", "Exp."), col=c("black", "blue", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+       c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 grid(NULL, NULL, lwd = 2)
 if(save.figs)
   dev.off()
@@ -112,7 +108,6 @@ if(run.plots)
 #    gain.embryo.vec[i] <- compute_gain_sim(params, loss.type, embryo.loss.params)$gain # embryo selection   multi.trait.gain.mean
 #    gain.mat[i] <- L$gain.mat
 #  }
-
 
 overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
 print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))

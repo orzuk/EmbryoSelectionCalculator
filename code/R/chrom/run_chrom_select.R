@@ -47,7 +47,7 @@ loss.params$eta <- 0 # negative L2 regularization
 loss.params$n.blocks <- 4
 
 
-sol.bb.mid <- optimize_C_branch_and_bound_lipschitz_middle(X, loss.C, loss.params)
+sol.bb.mid <- optimize_C_branch_and_bound_divide_and_conquer(X, loss.C, loss.params)
 
 # Only if block size small enough
 sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)

@@ -252,6 +252,12 @@ bound_monotone_loss_pareto_blocks_PS_mat <- function(sol, loss.type, loss.params
 
 ###############################################################
 # The gradient for the loss.
+# Input: 
+# X - 3rd order tensor
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+# 
+# Output: 
 # Return a matrix of size: M*C
 # Can also add a regularizer 
 ###############################################################

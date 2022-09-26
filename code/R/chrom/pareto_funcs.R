@@ -102,7 +102,7 @@ get_pareto_optimal_vecs <- function(X.mat, cpp.flag = FALSE)
     return(par)
   } else
   {
-    pareto.inds <- which.nondominated(-t(X.mat)) # new: use ecr package !! 
+    pareto.inds <- which.nondominated(-t(X.mat)) # new: use ecr package (fast) !! 
     #    n = dim(X.mat)[1] # internal implementation 
     #    if(is.null(n)) # here X.mat is a vector - only one vector 
     #      return(list(pareto.X=X.mat, pareto.inds=1))
