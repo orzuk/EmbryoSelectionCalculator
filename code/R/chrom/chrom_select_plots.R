@@ -85,7 +85,6 @@ if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
 plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
       col="red", main=paste0("Number of vectors considered "))
-
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
 lines(1:params$M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
 
@@ -105,7 +104,7 @@ if(run.plots)
 #  {
 #    params$C <- params$c.vec[i]
 #    bb.gain.vec[i]  <- compute_gain_sim(params, loss.type, bb.loss.params)$gain # chromosomal selection
-#    gain.embryo.vec[i] <- compute_gain_sim(params, loss.type, embryo.loss.params)$gain # embryo selection   multi.trait.gain.mean
+#    gain.embryo.vec[i] <- compute_gain_sim(params, loss.type, embryo.loss.params)$gain # embryo selection  multi.trait.gain.mean
 #    gain.mat[i] <- L$gain.mat
 #  }
 

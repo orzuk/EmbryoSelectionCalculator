@@ -162,6 +162,12 @@ loss_PS <- function(X.c, loss.type, loss.params)
 ###############################################################
 loss_PS_mat <- function(X.c.mat, loss.type, loss.params)
 {
+  if(is.vector(X.c.mat))
+    return(loss_PS(X.c.mat, loss.type, loss.params))
+  if(!("cpp" %in% names(loss.params)))  
+    loss.params$cpp <- FALSE  # default: run in R  
+  if(loss.params$cpp)
+    return(loss_PS_mat_rcpp(X.c.mat, loss.type, loss.params))
   #  X.c <- compute_X_C_mat(X, C)
   if(loss.type == "quant")
     loss.vec <- X.c.mat %*% loss.params$theta # scalar product 

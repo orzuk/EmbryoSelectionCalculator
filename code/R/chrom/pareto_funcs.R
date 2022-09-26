@@ -95,14 +95,17 @@ is_pareto_optimal <- function(x, X.mat)
 # Extract only Pareto-optimal vectors in a matrix
 get_pareto_optimal_vecs <- function(X.mat, cpp.flag = FALSE)
 {
-  if(cpp.flag)
+  if(cpp.flag)  # should also handle the case of one vector 
   {
     par <- get_pareto_optimal_vecs_rcpp(X.mat)
     par$pareto.inds <- par$pareto.inds + 1 # set one-based indices for R
     return(par)
   } else
   {
-    pareto.inds <- which.nondominated(-t(X.mat)) # new: use ecr package (fast) !! 
+    if(dim(X.mat)[1]==1)  # only one vector!!! 
+      pareto.inds = 1
+    else
+      pareto.inds <- which.nondominated(-t(X.mat)) # new: use ecr package (fast) !! 
     #    n = dim(X.mat)[1] # internal implementation 
     #    if(is.null(n)) # here X.mat is a vector - only one vector 
     #      return(list(pareto.X=X.mat, pareto.inds=1))
