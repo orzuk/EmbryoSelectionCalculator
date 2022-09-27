@@ -70,8 +70,8 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
   while((abs(delta.loss) > loss.params$epsilon) & (t<=loss.params$max.iters)) # Run projected gradient descent
   {
     if(t%%50 == 0)
-      print(paste("while t=", t))
-    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.type, loss.params) # move in minus gradient direction (minimization) 
+      print(paste("gradient t=", t, " loss=", loss.vec[t]))
+    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.type, loss.params) # Gradient descent: move in minus gradient direction (minimization) 
     C.cur <- project_stochastic_matrix(C.next) # Project onto the simplex 
     if(loss.params$decay == "exp") # exponential decay
       mu.t <- mu.t * loss.params$beta  # update step size 
@@ -343,6 +343,11 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)  # number of vectors in each block
   }
+  print("Sub-blocks # pareto-optimal vecs:")
+  print(n.pareto)
+  start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
+  print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
+    
   L.vec[(M.vec.cum[1]+1):M.vec.cum[2]] = B[[1]]$L.vec  # update start 
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   new.L.upperbound = L.upperbound
@@ -385,15 +390,23 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     
     
     #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
-    new.X <- c()
-    new.c <- c()
+    new.c <- new.X <- c()
     ctr <- 0
     print(paste0("Merge loop on good inds sub-block=", b, ", #good.inds=", length(cur.good.inds), " out of ", n.pareto[b]))
+    if(is.vector(B[[b]]$pareto.opt.X))
+      B[[b]]$pareto.opt.X <- as.matrix(t(B[[b]]$pareto.opt.X))
+    if(is.vector(B[[b]]$pareto.opt.c))
+      B[[b]]$pareto.opt.c <- as.matrix(t(B[[b]]$pareto.opt.c))
     for(j in cur.good.inds)  # loop over all vectors in the current stack (heavy loop!)
     {
       ctr <- ctr + 1
       if(ctr%%1000 == 0)
         print(paste0("Run ind ", ctr, " of ", length(cur.good.inds)))
+#      print(paste0("Comptue new v n.pareto=", n.pareto[b+1], " dim.b=", dim(B[[b]]$pareto.opt.X), 
+#            " dim.b1=", dim(B[[b+1]]$pareto.opt.X), ", ", length(B[[b+1]]$loss.vec)))
+#      print(paste("j=", j))
+#      print("Bj")
+      print(B[[b]]$pareto.opt.X[j,])
       new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       new.v <- list(pareto.X = new.v, pareto.inds = 1:n.pareto[b+1]) #      new.v <- get_pareto_optimal_vecs(new.v)
 
@@ -470,7 +483,11 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 
     print(paste0("Finished Merge sub-block=", b, ", L=", n.pareto[b+1]))
     
+    now.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B[(b+1):loss.params$n.blocks], loss.type, loss.params)
+#    print("BBB")
+    print(paste0("New-Bounds: [", now.bounds$lowerbound, ", ", now.bounds$upperbound, "], eps=", now.bounds$upperbound-now.bounds$lowerbound))    
     
+        
   } # end loop on blocks 
   
 #  print("merge!")

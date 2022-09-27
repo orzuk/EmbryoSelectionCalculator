@@ -142,7 +142,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
   if(loss.type == 'disease')  # weighted disease probability 
   {
     z.K <- qnorm(loss.params$K)
-    loss <- sum(pnorm( (z.K-X.c)/sqrt(1-loss.params$h.ps)  ) * loss.params$theta) 
+    loss <- sum(pnorm( (z.K-X.c)/sqrt(1-loss.params$h.ps)  ) * loss.params$theta) # take right tail
   }
   
   return(loss)
@@ -207,19 +207,16 @@ bound_monotone_loss_PS_mat <- function(X, loss.type, loss.params)
   }
   M <- dim(X)[1]
   T <- dim(X)[3]
-  max.X <- rep(0, T)
-  min.X <- rep(0, T)
+  opt.X <- max.X <- rep(0, T)
   for(b in 1:M) # loop on blocks
   {
     max.X <- max.X + colMaxs(X[b,,], value = TRUE) # Get maximum at each coordinate 
-    min.X <- min.X + colMins(X[b,,], value = TRUE) # Get minimum at each coordinate 
+    opt.X <- opt.X + X[b,which.min(loss_PS_mat(X[b,,], loss.type, loss.params)),] #   colMins(X[b,,], value = TRUE) # Get minimum at each coordinate 
   }
-  upper = loss_PS(min.X, loss.type, loss.params)
   lower = loss_PS(max.X, loss.type, loss.params)
-  return(list(upperbound=upper, lowerbound=lower, max.X=max.X, min.X=min.X))
+  upper = loss_PS(opt.X, loss.type, loss.params)
+  return(list(upperbound=upper, lowerbound=lower, max.X=max.X, opt.X=opt.X))
 }  
-
-
 
 
 ###############################################################
@@ -241,18 +238,20 @@ bound_monotone_loss_pareto_blocks_PS_mat <- function(sol, loss.type, loss.params
     print("Error! Can't give bounds for non-monotone losses!!!")
     return(NULL)
   }
-  B <- len(sol) # number of blocks 
-  T <- dim(sol[[1]]$pareto.opt.X)[2]
-  max.X <- rep(0, T)
-  min.X <- rep(0, T)
-  for(b in 1:B) # loop on Multi-Blocks
+  n.blocks <- length(sol) # number of blocks 
+  if(is.vector(sol[[1]]$pareto.opt.X))
+    T <- length(sol[[1]]$pareto.opt.X)
+  else
+    T <- dim(sol[[1]]$pareto.opt.X)[2]
+  opt.X <- max.X <- rep(0, T)
+  for(b in 1:n.blocks) # loop on Multi-Blocks
   {
-    max.X <- max.X + sol[[b]]$opt.X # Get best vector for each sub-problem (better than getting coordinate max) 
-    min.X <- min.X + colMins(sol[[b]]$pareto.opt.X, value = TRUE) # Get minimum at each coordinate 
+    max.X <- max.X + sol[[b]]$max.X # colMaxs(sol[[b]]$pareto.opt.X, value = TRUE) # Get minimum at each coordinate 
+    opt.X <- opt.X + sol[[b]]$opt.X # Get best vector for each sub-problem (better than getting coordinate max) 
   }
-  upper = loss_PS(min.X, loss.type, loss.params)
   lower = loss_PS(max.X, loss.type, loss.params)
-  return(list(upperbound=upper, lowerbound=lower, max.X=max.X, min.X=min.X))
+  upper = loss_PS(opt.X, loss.type, loss.params)
+  return(list(upperbound=upper, lowerbound=lower, opt.X=opt.X, max.X=max.X))
 }  
 
 
@@ -265,15 +264,13 @@ bound_monotone_loss_pareto_blocks_PS_mat <- function(sol, loss.type, loss.params
 # 
 # Output: 
 # Return a matrix of size: M*C
-# Can also add a regularizer 
+# Also added a regularizer 
 ###############################################################
 grad_loss_PS <- function(X, C, loss.type, loss.params)
 {
   M = dim(X)[1]
-
   if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
     loss.params$eta <- 0 
-  
   if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
     return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2))  - loss.params$eta)
@@ -284,7 +281,7 @@ grad_loss_PS <- function(X, C, loss.type, loss.params)
     z.K <- qnorm(loss.params$K)
     Sigma.eps.inv <- 1/(1-sqrt(loss.params$h.ps))
     X.c <- compute_X_C_mat(X, C)
-    return( tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) - loss.params$eta) # added regularizer  
+    return(-  tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) - loss.params$eta) # added regularizer  
   }
 }  
 

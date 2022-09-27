@@ -18,15 +18,33 @@ setwd(root_dir)
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
+# For plotting
+col.vec <- c("red", "green", "blue", "orange", "purple", "pink")
+pal <- colorRamp(c("red", "blue"))
+num.k <- 5 # length(k.vec)
+num.c <- 5 # length(c.vec)
+
+c.col.vec <- matrix(0, num.c, 3) # rep('', num.k)
+for(k in c(1:num.c))
+{
+  c.col.vec[k,] <- pal((k-1) / (num.c-1))
+}
+c.col.vec <- c.col.vec/ 255
+chr.c.col.vec <- rep("", num.c)
+for(k in c(1:num.c))
+{
+  chr.c.col.vec[k] <-  rgb(c.col.vec[k,1], c.col.vec[k,2], c.col.vec[k,3])
+}
+
+
+
 
 start.time <- Sys.time()
 
 # Set all parameters
 params <- c()
-params$M <- 23 # 10 for fast running 22 # try full chromosomes  
-params$c.vec <- 2:10
+params$M <-23 # 10 for fast running 22 # try full chromosomes  
 params$T <- 5 # number of traits 
-params$iters <- 100
 df <- 5 # For Wishart distribution
 
 h.ps <- 0.3  # variance explained by the polygenic score 
@@ -50,7 +68,6 @@ loss.params$max.L <- 10**6 # maximal number to take in B&B algorithm
 
 gain.embryo.vec <- bb.gain.vec <- gain.vec <- rep(0, length(params$c.vec))  # the gain when selecting embryos (no chromosomes)
 run.plots <- 1
-params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 n.methods <- length(params$alg.str)
 gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #embryo.loss.params = loss.params
@@ -88,9 +105,10 @@ plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
 lines(1:params$M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
 
-legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
-       c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 grid(NULL, NULL, lwd = 2)
+legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
+       c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), 
+       cex=0.75, box.lwd = 0, box.col = "white", bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 if(save.figs)
   dev.off()
 
@@ -98,6 +116,12 @@ if(save.figs)
 ###############################################################
 # Figure 2: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
+params$c.vec <- 2:5
+params$iters <- 10
+loss.params$n.blocks = 4 
+params$M <- 12  # reduce to run fast !! 
+params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+#params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 if(run.plots)
   gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
 #  for(i in 1:length(params$c.vec))
@@ -119,11 +143,14 @@ if(save.figs)
   save(params, loss.type, loss.params, gain.res, overall.plot.time, file="disease_gain_chrom.Rdata")
   jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
 }
-plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", ylim = c(1.5*min(gain.res$gain.mat), max(0, max(gain.res$gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
-lines(params$c.vec, gain.res$gain.mat[,2], type="b", col="red") # compare to gain just form embryo selection 
-legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
-       c( "embryo", "chrom"), col=c("black", "red"), cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+n.algs <- length(params$alg.str)
+plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
+     ylim = c(1.5*min(gain.res$gain.mat), max(0, max(gain.res$gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
+for(j in 2:n.algs)
+  lines(params$c.vec, gain.res$gain.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
 grid(NULL, NULL, lwd = 2)
+legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
+       c( "embryo", "chrom", "relax"), col=col.vec[1:n.algs], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 if(save.figs)
   dev.off()
 ###############################################################
