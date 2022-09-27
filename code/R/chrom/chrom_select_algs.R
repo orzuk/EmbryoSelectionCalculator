@@ -767,7 +767,7 @@ compute_gain_sim <- function(params, loss.type, loss.params)
   } # loop on iters
 
   for(a in 1:n.algs)
-    gain.mat[,a] <- t(colMeans(gain.tensor[,,a]) - colMeans(rand.mat)) # compute optimal loss. Should subtract mean loss  
+    gain.mat[,a] <- t(colMeans(rand.mat) - colMeans(gain.tensor[,,a])) # compute mean random loss minus optimal loss.
   return(list(gain.mat=gain.mat, gain.tensor=gain.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor)) # Need to reduce the mean gain without selection 
 }
 
