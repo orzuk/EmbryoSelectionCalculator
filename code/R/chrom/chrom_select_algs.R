@@ -345,9 +345,16 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   }
   print("Sub-blocks # pareto-optimal vecs:")
   print(n.pareto)
+
   start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
   print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
     
+  
+  print("Im filter:")
+  B <- filter_solutions(B, loss.type, loss.params)
+  n.pareto <- B$n.pareto
+  B <- B$sol
+  
   L.vec[(M.vec.cum[1]+1):M.vec.cum[2]] = B[[1]]$L.vec  # update start 
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   new.L.upperbound = L.upperbound
@@ -406,7 +413,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 #            " dim.b1=", dim(B[[b+1]]$pareto.opt.X), ", ", length(B[[b+1]]$loss.vec)))
 #      print(paste("j=", j))
 #      print("Bj")
-      print(B[[b]]$pareto.opt.X[j,])
+#      print(B[[b]]$pareto.opt.X[j,])
       new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       new.v <- list(pareto.X = new.v, pareto.inds = 1:n.pareto[b+1]) #      new.v <- get_pareto_optimal_vecs(new.v)
 
@@ -424,7 +431,15 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
         # Next merge the two 
         new.X <- rbind(new.X, new.v$pareto.X)
 #        print(paste0("MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
-        new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
+#        print("INDS: ")
+#        print(new.v$pareto.inds)
+#        print("PARETO C:")
+#        print(B[[b+1]]$pareto.opt.c)
+        if(is.vector(B[[b+1]]$pareto.opt.c))
+          new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
+                                      matrix(B[[b+1]]$pareto.opt.c, nrow= length(new.v$pareto.inds), byrow=FALSE)) ) # only one ! 
+        else
+          new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=FALSE)) )
 
 #        print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
@@ -537,6 +552,65 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 
 
 
+
+
+###############################################################
+# Filter solutions that can't be grown into optimal solution for monotone loss  
+# Input: 
+# sol - vector of solutions for partial problems (can be of different sizes)
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+#
+# Output: 
+# sol - new with reduced number of solutions
+###############################################################
+filter_solutions <- function(sol, loss.type, loss.params)
+{
+  if(!is_monotone_loss(loss.type))
+  {
+    print("Error! Can't filter solutions for non-monotone losses!!!")
+    return(NULL)
+  }
+  n.blocks <- length(sol) # number of blocks 
+  if(is.vector(sol[[1]]$pareto.opt.X))
+    T <- length(sol[[1]]$pareto.opt.X)
+  else
+    T <- dim(sol[[1]]$pareto.opt.X)[2]
+
+  opt.X <- max.X <- rep(0, T)
+  n.pareto <- rep(0, n.blocks)
+  for(b in 1:n.blocks) # loop on Multi-Blocks
+  {
+    n.pareto[b] <- length(sol[[b]]$loss.vec)  # number of vectors in each block
+    max.X <- max.X + sol[[b]]$max.X # colMaxs(sol[[b]]$pareto.opt.X, value = TRUE) # Get minimum at each coordinate 
+    opt.X <- opt.X + sol[[b]]$opt.X # Get best vector for each sub-problem (better than getting coordinate max) 
+  }
+  n.pareto.new <- n.pareto
+  upper = loss_PS(opt.X, loss.type, loss.params)
+  for(b in 1:n.blocks)
+    if(n.pareto[b]>1)
+    {
+      cur.max.X <- max.X - sol[[b]]$max.X #   cur.opt.X <- opt.X - sol[[b]]$max.X 
+    
+      lower <- loss_PS_mat(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)), loss.type, loss.params)  # Vectorized version 
+      cur.good.inds <- which(lower <= upper)  # Filter all vectors .. 
+      
+      sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
+      sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]
+      sol[[b]]$loss.vec <- sol[[b]]$loss.vec[cur.good.inds]
+      n.pareto.new[b] <- length(cur.good.inds)
+      if(n.pareto.new[b]==1)
+        sol[[b]]$max.X  <- sol[[b]]$pareto.opt.X # update also max (one vector) 
+      else
+        sol[[b]]$max.X  <- colMaxs(sol[[b]]$pareto.opt.X, value = TRUE) # update also max 
+    }
+  
+  print("OLD # VECTORS:")
+  print(n.pareto)
+  print("NEW # VECTORS:")
+  print(n.pareto.new)
+  return(list(sol=sol, n.pareto=n.pareto.new))  # updated array 
+}  
 
 
 ###############################################################

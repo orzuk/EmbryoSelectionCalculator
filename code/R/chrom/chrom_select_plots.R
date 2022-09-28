@@ -116,11 +116,12 @@ if(save.figs)
 ###############################################################
 # Figure 2: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
-params$c.vec <- 2:5
+params$c.vec <- 2:10
 params$iters <- 10
 loss.params$n.blocks = 4 
-params$M <- 12  # reduce to run fast !! 
-params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$M <- 23  # reduce to run fast !! 
+#params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 #params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 if(run.plots)
   gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
@@ -145,11 +146,12 @@ if(save.figs)
 }
 n.algs <- length(params$alg.str)
 plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
-     ylim = c(1.5*min(gain.res$gain.mat), max(0, max(gain.res$gain.mat))), main=paste0("Gain for ", loss.type, " loss"))
+     ylim = c(min(0,min(gain.res$gain.mat)), max(0, max(gain.res$gain.mat))), 
+     main=paste0("Gain for ", loss.type, " loss, M=", params$M, " C=", params$C, " T=", params$T))
 for(j in 2:n.algs)
   lines(params$c.vec, gain.res$gain.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
 grid(NULL, NULL, lwd = 2)
-legend(0.8 * max(params$c.vec), 0,   lwd=c(2,2), 
+legend(0.8 * max(params$c.vec), 0.2*max(gain.res$gain.mat),   lwd=c(2,2), 
        c( "embryo", "chrom", "relax"), col=col.vec[1:n.algs], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 if(save.figs)
   dev.off()

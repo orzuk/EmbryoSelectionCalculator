@@ -286,11 +286,19 @@ grad_loss_PS <- function(X, C, loss.type, loss.params)
 }  
 
 
+###############################################################
 # The hessian matrix of the loss. 
+# Input: 
+# X - 3rd order tensor
+# loss.type - what loss to compute 
+# loss.params - parameters of loss 
+# 
+# Output: 
 # Return a 4-order tensor of size: (M*C)*(M*C)
+###############################################################
 hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
 {
-  M = dim(X)[1]
+  M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
   
@@ -333,7 +341,6 @@ hessian_loss_PS <- function(X, C.mat, loss.type, loss.params)
 # alpha.vec - a vector of lipschitz constants for each input coordinate of the loss  
 #
 ###############################################################
-
 lipschitz_loss_PS <- function(loss.type, loss.params)
 {
   if(loss.type == "quant")
@@ -348,12 +355,18 @@ lipschitz_loss_PS <- function(loss.type, loss.params)
   return(alpha.vec)  
 }
 
+###############################################################
 # Multiply a tensor by matrix 
-# X - a 3rd-prder tensor of dims: M*C*T
+# Input: 
+# X - a 3rd-order tensor of dims: M*C*T
 # A - a matrix. Dimension depends on axis to multiply by: 
 # ax=3: A is a matrix of size M*C
 # ax=2: A is a matrix of size M*T
 # ax=1: A is a matrix of size C*T
+# 
+# Output: 
+# X x_{ax} A - a matrix 
+###############################################################
 tensor_matrix_prod <- function(X, A, ax=3)
 {
   if(ax == 2)
@@ -385,6 +398,7 @@ tensor_matrix_prod <- function(X, A, ax=3)
 # ax - on which axis to run the summation of multiplication 
 # Output: 
 # A matrix R such that R_{i,j} = \sum_k X_{ijk} v_k
+#############################################
 tensor_vector_prod <- function(X, v, ax=3)
 {
   if(ax == 3)
@@ -397,7 +411,9 @@ tensor_vector_prod <- function(X, v, ax=3)
 }
 
 
+#############################################
 # Project each row of a matrix onto the simplex 
+#############################################
 project_stochastic_matrix <- function(C.mat)
 {
   C.proj <- C.mat
@@ -408,7 +424,9 @@ project_stochastic_matrix <- function(C.mat)
   
 
 
+#############################################
 # Compute a vector of coordinate-wise lipschitz constants for a loss function
+#############################################
 compute_lipschitz_const <- function(loss.type, loss.params)
 {
   T <- length(loss.params$theta)
@@ -461,7 +479,9 @@ get_tensor_lipschitz_params <- function(X, loss.type, loss.params)
 }
 
 
+#############################################
 # Check if loss function is monotonic
+#############################################
 is_monotone_loss <- function(loss.type)
 {
   return ( loss.type %in% c("disease", "quant") )
