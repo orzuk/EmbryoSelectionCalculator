@@ -10,20 +10,21 @@ library(stringr)
 
 # root_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom"
 # figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
-root_dir = "C:/Code/GitHub/EmbryoSelectionCalculator/code/R/chrom"
 #figs_dir = paste0(substr(root_dir, 1, tail(str_locate_all(root_dir, "/")[[1]][,1], 3)[1]), "Figures/chrom/")
+root_dir = "C:/Code/GitHub/EmbryoSelectionCalculator/code/R/chrom"
 figs_dir = paste0(root_dir, "/Figures/")
 
 setwd(root_dir)
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 
+start.time <- Sys.time()
+
 # For plotting
 col.vec <- c("red", "green", "blue", "orange", "purple", "pink")
 pal <- colorRamp(c("red", "blue"))
 num.k <- 5 # length(k.vec)
 num.c <- 5 # length(c.vec)
-
 c.col.vec <- matrix(0, num.c, 3) # rep('', num.k)
 for(k in c(1:num.c))
 {
@@ -33,13 +34,9 @@ c.col.vec <- c.col.vec/ 255
 chr.c.col.vec <- rep("", num.c)
 for(k in c(1:num.c))
 {
-  chr.c.col.vec[k] <-  rgb(c.col.vec[k,1], c.col.vec[k,2], c.col.vec[k,3])
+  chr.c.col.vec[k] <- rgb(c.col.vec[k,1], c.col.vec[k,2], c.col.vec[k,3])
 }
 
-
-
-
-start.time <- Sys.time()
 
 # Set all parameters
 params <- c()
@@ -75,7 +72,6 @@ gain.mat <- matrix(rep(0, length(params$c.vec)*n.methods), ncol = n.methods)
 #bb.loss.params = loss.params
 #bb.loss.params$alg.str = "branch_and_bound"
 loss.params$do.checks = 0
-
 save.figs <- FALSE
 
 
@@ -85,9 +81,10 @@ save.figs <- FALSE
 params$C = 2 # max(params$c.vec)
 Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
 X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-
 loss.params$lipschitz <- FALSE
+bb.start.time <- Sys.time()
 sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
 loss.params$lipschitz <- TRUE
 loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
 sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
@@ -104,7 +101,6 @@ plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log
       col="red", main=paste0("Number of vectors considered "))
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
 lines(1:params$M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
-
 grid(NULL, NULL, lwd = 2)
 legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
        c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), 
@@ -113,6 +109,22 @@ if(save.figs)
   dev.off()
 
 
+# Figure 1.b.: average many runs 
+time.iters <- 50
+bb.num.vecs <- matrix(0, nrow=time.iters, ncol = num.m)
+for(i in 1:time.iters)
+{
+  print(paste0("Run iter=", i, " out of ", time.iters))
+  X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+  loss.params$lipschitz <- FALSE
+  bb.start.time <- Sys.time()
+  sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+  print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
+  loss.params$lipschitz <- TRUE
+  loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
+  sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
+}
+
 ###############################################################
 # Figure 2: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
@@ -120,9 +132,9 @@ params$c.vec <- 2:10
 params$iters <- 10
 loss.params$n.blocks = 4 
 params$M <- 23  # reduce to run fast !! 
-#params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
-#params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 if(run.plots)
   gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
 #  for(i in 1:length(params$c.vec))

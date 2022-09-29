@@ -36,11 +36,7 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
   
   # set defaults 
   if(isempty(C.init))
-  {
-    print("SET INIT")
     C.init <- matrix(1/C, M, C)
-    print(dim(C.init))
-  }
   if(!("mu.init" %in% names(loss.params)))  
     loss.params$mu.init <- 1 
   if(!("decay" %in% names(loss.params)))  
@@ -52,7 +48,7 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
     else 
       loss.params$beta <- 0.99 
   }
-  if(!("epsilon" %in% names(loss.params)))  
+  if(!("epsilon" %in% names(loss.params)))  # default tolerance 
     loss.params$epsilon <- 0.000001 
   if(!("max.iters" %in% names(loss.params)))  
     loss.params$max.iters <- 10000 
@@ -349,8 +345,6 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
   print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
     
-  
-  print("Im filter:")
   B <- filter_solutions(B, loss.type, loss.params)
   n.pareto <- B$n.pareto
   B <- B$sol
@@ -605,9 +599,7 @@ filter_solutions <- function(sol, loss.type, loss.params)
         sol[[b]]$max.X  <- colMaxs(sol[[b]]$pareto.opt.X, value = TRUE) # update also max 
     }
   
-  print("OLD # VECTORS:")
-  print(n.pareto)
-  print("NEW # VECTORS:")
+  print("AFTER FILTERING NEW # VECTORS:")
   print(n.pareto.new)
   return(list(sol=sol, n.pareto=n.pareto.new))  # updated array 
 }  
@@ -737,12 +729,11 @@ optimize_C_embryo <- function(X, loss.type, loss.params)
 ###############################################################
 optimize_C <- function(X, loss.type, loss.params, alg.str)
 {
+  start.time <- Sys.time()
   M <- dim(X)[1]; C <- dim(X)[2];  T <- dim(X)[3]
   
   if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
     return(optimize_C_embryo(X, loss.type, loss.params))
-  
-  
   if(loss.type == "quant") # easy optimization for quantitative traits 
     return(optimize_C_quant(X, loss.type, loss.params))
   if(alg.str == "relax")  # here we need to set init
