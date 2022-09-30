@@ -173,6 +173,26 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 {
   if(!("cpp" %in% names(loss.params)))  
     loss.params$cpp <- FALSE  # default: run in R  
+
+  #  print("Start optimize B&B in R") 
+  if(length(dim(X)) == 2) # M == 1) # Nothing to optimize here!
+  {
+    M <- 1; C <- dim(X)[1]; T <- dim(X)[2]
+    print(paste0("M, C, T:", M, " ", C, " ", T))
+    loss.vec <- loss_PS_mat(X, loss.type, loss.params) # TO FILL! !! 
+    i.min <- which.min(loss.vec)
+    par.X <- get_pareto_optimal_vecs(X) # Save only Pareto-optimal vectors. Needs fixing 
+    print("Pareto X:")
+    print(par.X$pareto.X)
+    print("Pareto C:")
+    print(par.X$pareto.inds)
+    return(list(opt.X = X[i.min,], opt.c = i.min, opt.loss = min(loss.vec), 
+                loss.vec = loss.vec, L.vec = C, 
+                pareto.opt.X= par.X$pareto.X, pareto.opt.c = t(t(par.X$pareto.inds))))
+  }
+  M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
+  print(paste0("M, C, T:", M, " ", C, " ", T))
+  
   if(loss.params$cpp) # new: run in cpp
   {
     print("Start optimize B&B CPP") 
@@ -182,8 +202,6 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     loss.params$lipschitz <- FALSE  # Default: no lipschitz constant (vector)
   print("Start optimize B&B R") 
   
-  #  print("Start optimize B&B in R") 
-  M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
   
   par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors. Needs fixing 
   cur.c <- t(t(par.X$pareto.inds))  # Format matrix 
@@ -319,6 +337,8 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
   if(!("n.blocks" %in% names(loss.params)))  
     loss.params$n.blocks <- 2  # default: divide to two blocks 
+  loss.params$n.blocks <- min(loss.params$n.blocks, M)  # can't divide to more blocks  ! 
+  
 #  lip.alpha <- compute_lipschitz_const(loss.type, loss.params)
 #  lip.tensor <- get_tensor_lipschitz_params(X, loss.type, loss.params)  # get loss and bounds for individual vectors (not implemented?)
   L.vec <- rep(0, M)

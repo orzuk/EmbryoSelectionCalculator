@@ -110,19 +110,31 @@ if(save.figs)
 
 
 # Figure 1.b.: average many runs 
-time.iters <- 50
-bb.num.vecs <- matrix(0, nrow=time.iters, ncol = num.m)
+time.iters <- 3
+params$C = 2 # max(params$c.vec)
+
+params$max.M <- 10
+num.m <- params$max.M - 1
+dc.num.vecs <- bb.num.vecs <- matrix(0, nrow=time.iters, ncol = num.m)
 for(i in 1:time.iters)
 {
-  print(paste0("Run iter=", i, " out of ", time.iters))
-  X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-  loss.params$lipschitz <- FALSE
-  bb.start.time <- Sys.time()
-  sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
-  print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
-  loss.params$lipschitz <- TRUE
-  loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
-  sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
+  for(j in 2:params$max.M)
+  {
+    params$M <- j
+    print(paste0("Run iter=", i, ", ", j, " out of ", time.iters, " , ", params$max.M))
+    Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
+    X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+    loss.params$lipschitz <- FALSE
+    bb.start.time <- Sys.time()
+    sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+    print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
+    loss.params$lipschitz <- TRUE
+    loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
+    sol.dc <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
+    
+    bb.num.vecs[i,j] <- max(sol.bb$L.vec)
+    dc.num.vecs[i,j] <- max(sol.dc$L.vec)
+  } 
 }
 
 ###############################################################
