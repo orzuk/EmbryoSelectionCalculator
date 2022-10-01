@@ -115,7 +115,7 @@ params$C = 2 # max(params$c.vec)
 
 params$max.M <- 10
 num.m <- params$max.M - 1
-dc.num.vecs <- bb.num.vecs <- matrix(0, nrow=time.iters, ncol = num.m)
+dc.num.vecs <- bb.num.vecs <- matrix(0, nrow=time.iters, ncol = params$max.M)
 for(i in 1:time.iters)
 {
   for(j in 2:params$max.M)

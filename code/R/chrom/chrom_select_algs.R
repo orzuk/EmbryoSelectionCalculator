@@ -184,7 +184,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     par.X <- get_pareto_optimal_vecs(X) # Save only Pareto-optimal vectors. Needs fixing 
     print("Pareto X:")
     print(par.X$pareto.X)
-    print("Pareto C:")
+    print("L.vec, Pareto C:")
     print(par.X$pareto.inds)
     return(list(opt.X = X[i.min,], opt.c = i.min, opt.loss = min(loss.vec), 
                 loss.vec = loss.vec, L.vec = C, 
@@ -358,6 +358,10 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     opt.X.upperbound <- opt.X.upperbound + B[[b]]$opt.X  #    opt.c.upperbound <- c(opt.c.upperbound,  B[[b]]$opt.c)  # not needed !!! 
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)  # number of vectors in each block
+    
+    print("B-pareto-c-start:")
+    print(B[[b]]$pareto.opt.c)
+    
   }
   print("Sub-blocks # pareto-optimal vecs:")
   print(n.pareto)
@@ -365,11 +369,18 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
   print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
     
+  print("B-pareto-c-bli-filter:")
+  print(B[[1]]$pareto.opt.c)
   B <- filter_solutions(B, loss.type, loss.params)
+  
   n.pareto <- B$n.pareto
   B <- B$sol
+  print("B-pareto-c-im-filter:")
+  print(B[[1]]$pareto.opt.c)
   
   L.vec[(M.vec.cum[1]+1):M.vec.cum[2]] = B[[1]]$L.vec  # update start 
+  print("L.vec now:")
+  print(L.vec)
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   new.L.upperbound = L.upperbound
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
@@ -401,7 +412,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     new.max.X = max.X - B[[b+1]]$max.X
     new.L.upperbound <- min(new.L.upperbound, loss_PS(new.opt.X.upperbound, loss.type, loss.params) + 0.00000000001)  # > Loss_*
     
-#    print(paste0("Global upperbound=", L.upperbound, ", New upperbound=", new.L.upperbound))
+    print(paste0("Global upperbound=", L.upperbound, ", New upperbound=", new.L.upperbound))
     
     #    B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])   # lower-bound on the final score L* of every selection of current X 
 #    for(i in 1:n.pareto[b])
@@ -410,32 +421,51 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= new.L.upperbound)  # L.upperbound (old)
     
     
-    #    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
+    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.c <- new.X <- c()
     ctr <- 0
     print(paste0("Merge loop on good inds sub-block=", b, ", #good.inds=", length(cur.good.inds), " out of ", n.pareto[b]))
-    if(is.vector(B[[b]]$pareto.opt.X))
+    print("B-pareto-c")
+    print(B[[b]]$pareto.opt.c)
+    if(is.vector(B[[b]]$pareto.opt.X) && (M.vec[b]>1))
       B[[b]]$pareto.opt.X <- as.matrix(t(B[[b]]$pareto.opt.X))
-    if(is.vector(B[[b]]$pareto.opt.c))
+    if(is.vector(B[[b]]$pareto.opt.c) && (M.vec[b]>1))
       B[[b]]$pareto.opt.c <- as.matrix(t(B[[b]]$pareto.opt.c))
+    print("START LOOP")
+    print("B-pareto-c-now:")
+    print(B[[b]]$pareto.opt.c)
+    
+    # PROBLEM: VECTOR CAN BE FOR TWO REASONS:
+    # 1. JUST ONE OPTIMAL VECTOR
+    # 2. M=1
+    # MUST DISTINGUISH THE TWO!!!
     for(j in cur.good.inds)  # loop over all vectors in the current stack (heavy loop!)
     {
+      print(paste0("j is:", j))
       ctr <- ctr + 1
       if(ctr%%1000 == 0)
         print(paste0("Run ind ", ctr, " of ", length(cur.good.inds)))
-#      print(paste0("Comptue new v n.pareto=", n.pareto[b+1], " dim.b=", dim(B[[b]]$pareto.opt.X), 
-#            " dim.b1=", dim(B[[b+1]]$pareto.opt.X), ", ", length(B[[b+1]]$loss.vec)))
-#      print(paste("j=", j))
-#      print("Bj")
-#      print(B[[b]]$pareto.opt.X[j,])
-      new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+      print(paste0("Comptue new v n.pareto=", n.pareto[b+1], " dim.b=", dim(B[[b]]$pareto.opt.X), 
+            " dim.b1=", dim(B[[b+1]]$pareto.opt.X), ", ", length(B[[b+1]]$loss.vec)))
+      print(paste("j=", j))
+      print("Bj")
+      print("B-pareto-x")
+      print(B[[b]]$pareto.opt.X)
+      
+      if(n.pareto[b]==1)
+      {
+        new.v <- matrix(rep(B[[b]]$pareto.opt.X, n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+      } else
+      {
+        print(B[[b]]$pareto.opt.X[j,])
+        new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
+      }      
       new.v <- list(pareto.X = new.v, pareto.inds = 1:n.pareto[b+1]) #      new.v <- get_pareto_optimal_vecs(new.v)
 
       new.L.lowerbound.vec = loss_PS_mat_rcpp(new.v$pareto.X + t(replicate(n.pareto[b+1], new.max.X)), loss.type, loss.params)    # Filter right away!!! 
       new.good.inds <- which(new.L.lowerbound.vec <= new.L.upperbound)  # L.upperbound (old)
-
       
-#      print(paste0("Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
+      print(paste0("Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
       if(length(new.good.inds)>0)  # add vectors 
       {
         new.v$pareto.X = new.v$pareto.X[new.good.inds,]  # filter new ones !!! 
@@ -444,19 +474,20 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 #        print(paste0("MERGE NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
         # Next merge the two 
         new.X <- rbind(new.X, new.v$pareto.X)
-#        print(paste0("MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
-#        print("INDS: ")
-#        print(new.v$pareto.inds)
-#        print("PARETO C:")
-#        print(B[[b+1]]$pareto.opt.c)
-        if(is.vector(B[[b+1]]$pareto.opt.c))
+        print(paste0("MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
+        print("INDS: ")
+        print(new.v$pareto.inds)
+        print("PARETO C:")
+        print(B[[b]]$pareto.opt.c)
+        print(B[[b+1]]$pareto.opt.c)
+        if(is.vector(B[[b+1]]$pareto.opt.c) && (M.vec[b+1]>1))
           new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                       matrix(B[[b+1]]$pareto.opt.c, nrow= length(new.v$pareto.inds), byrow=FALSE)) ) # only one ! 
         else
           new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=FALSE)) )
 
-#        print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
+        print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
       }    
       #      if( length(new.v$pareto.inds)<=1 )
 #      {
@@ -490,7 +521,12 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 
     print(paste0("Merge sub-block=", b, ", L=", n.pareto[b+1]))
     L.vec[(M.vec.cum[b+1]+1):(M.vec.cum[b+2]-1)] = L.vec[M.vec.cum[b+1]]  # update start 
+    print("SET L.vec now:")
+    print(L.vec)
     L.vec[M.vec.cum[b+2]] = n.pareto[b+1]  # update end 
+    print("SET2 L.vec now:")
+    print(L.vec)
+    
     # update next layer: 
     B[[b+1]]$pareto.opt.X <- new.X
     B[[b+1]]$pareto.opt.c <- new.c
@@ -524,7 +560,6 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   print(paste0("merge time (sec.):", merge.time))
   
   
-  
   # Finally find the cost-minimizer out of the Pareto-optimal vectors
   L <- n.pareto[b+1]
   if(is.null(L)) # one dimensional array 
@@ -544,24 +579,23 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   loss.eval.time <- difftime(Sys.time() , start.time, units="secs") - bb.time - merge.time 
   print(paste0("loss eval time (sec.):", loss.eval.time))
   
-  
-  
-  #  print("loss.vec:")
-  #  print(loss.vec)
-  #  print("new c:")
-  #  print(new.c)
-  #  print("i min:")
-  #  print(i.min)
-  
-  if(L == 1)
+
+  if(L == 1)  # output one vector at the end 
   {
-#    print("Return i.min:")
-#    print(i.min)
-    return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
+    print("RETURN L=1")
+#    return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
   }
   else
-    return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec), L.vec = L.vec,
-                bb.time = bb.time, merge.time = merge.time))
+  {
+    new.X <- new.X[i.min,]
+    new.c <- new.c[i.min,]
+  }
+  return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec), L.vec = L.vec,
+        bb.time = bb.time, merge.time = merge.time))
+  
+#  return(list(opt.X = new.X[i.min,], opt.c = new.c[i.min,], opt.loss = min(loss.vec), L.vec = L.vec,
+#              bb.time = bb.time, merge.time = merge.time))
+  
 }  
 
 
@@ -608,11 +642,19 @@ filter_solutions <- function(sol, loss.type, loss.params)
     
       lower <- loss_PS_mat(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)), loss.type, loss.params)  # Vectorized version 
       cur.good.inds <- which(lower <= upper)  # Filter all vectors .. 
-      
-      sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
-      sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]
-      sol[[b]]$loss.vec <- sol[[b]]$loss.vec[cur.good.inds]
       n.pareto.new[b] <- length(cur.good.inds)
+      
+      print("Filter: cur-good-inds:")
+      print(cur.good.inds)
+      sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
+      if(n.pareto.new[b]>1)
+      {
+        if(dim(sol.1$pareto.opt.c)[2]==1)
+          sol[[b]]$pareto.opt.c <- t(t(sol[[b]]$pareto.opt.c[cur.good.inds,]))
+        else
+          sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]
+      }
+      sol[[b]]$loss.vec <- sol[[b]]$loss.vec[cur.good.inds]
       if(n.pareto.new[b]==1)
         sol[[b]]$max.X  <- sol[[b]]$pareto.opt.X # update also max (one vector) 
       else
