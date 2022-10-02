@@ -182,10 +182,10 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
     loss.vec <- loss_PS_mat(X, loss.type, loss.params) # TO FILL! !! 
     i.min <- which.min(loss.vec)
     par.X <- get_pareto_optimal_vecs(X) # Save only Pareto-optimal vectors. Needs fixing 
-    print("Pareto X:")
-    print(par.X$pareto.X)
-    print("L.vec, Pareto C:")
-    print(par.X$pareto.inds)
+#    print("Pareto X:")
+#    print(par.X$pareto.X)
+#    print("L.vec, Pareto C:")
+#    print(par.X$pareto.inds)
     return(list(opt.X = X[i.min,], opt.c = i.min, opt.loss = min(loss.vec), 
                 loss.vec = loss.vec, L.vec = C, 
                 pareto.opt.X= par.X$pareto.X, pareto.opt.c = t(t(par.X$pareto.inds))))
@@ -432,8 +432,8 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     if(is.vector(B[[b]]$pareto.opt.c) && (M.vec[b]>1))
       B[[b]]$pareto.opt.c <- as.matrix(t(B[[b]]$pareto.opt.c))
     print("START LOOP")
-    print("B-pareto-c-now:")
-    print(B[[b]]$pareto.opt.c)
+#    print("B-pareto-c-now:")
+#    print(B[[b]]$pareto.opt.c)
     
     # PROBLEM: VECTOR CAN BE FOR TWO REASONS:
     # 1. JUST ONE OPTIMAL VECTOR
@@ -449,8 +449,8 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
             " dim.b1=", dim(B[[b+1]]$pareto.opt.X), ", ", length(B[[b+1]]$loss.vec)))
       print(paste("j=", j))
       print("Bj")
-      print("B-pareto-x")
-      print(B[[b]]$pareto.opt.X)
+#      print("B-pareto-x")
+#      print(B[[b]]$pareto.opt.X)
       
       if(n.pareto[b]==1)
       {
@@ -644,15 +644,18 @@ filter_solutions <- function(sol, loss.type, loss.params)
       cur.good.inds <- which(lower <= upper)  # Filter all vectors .. 
       n.pareto.new[b] <- length(cur.good.inds)
       
-      print("Filter: cur-good-inds:")
-      print(cur.good.inds)
+#      print("Filter: cur-good-inds:")
+#      print(cur.good.inds)
       sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
       if(n.pareto.new[b]>1)
       {
-        if(dim(sol.1$pareto.opt.c)[2]==1)
-          sol[[b]]$pareto.opt.c <- t(t(sol[[b]]$pareto.opt.c[cur.good.inds,]))
-        else
-          sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]
+        if(is.matrix(sol$pareto.opt.c)) 
+        {
+          if(dim(sol$pareto.opt.c)[2]==1)
+            sol[[b]]$pareto.opt.c <- t(t(sol[[b]]$pareto.opt.c[cur.good.inds,]))
+          else
+            sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]
+        }
       }
       sol[[b]]$loss.vec <- sol[[b]]$loss.vec[cur.good.inds]
       if(n.pareto.new[b]==1)
