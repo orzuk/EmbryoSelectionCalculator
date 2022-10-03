@@ -187,7 +187,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
 #    print("L.vec, Pareto C:")
 #    print(par.X$pareto.inds)
     return(list(opt.X = X[i.min,], opt.c = i.min, opt.loss = min(loss.vec), 
-                loss.vec = loss.vec, L.vec = C, 
+                loss.vec = loss.vec[par.X$pareto.inds], L.vec = C, 
                 pareto.opt.X= par.X$pareto.X, pareto.opt.c = t(t(par.X$pareto.inds))))
   }
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
@@ -480,13 +480,19 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
         print("PARETO C:")
         print(B[[b]]$pareto.opt.c)
         print(B[[b+1]]$pareto.opt.c)
-        if(is.vector(B[[b+1]]$pareto.opt.c) && (M.vec[b+1]>1))
+        print("new.c:")
+        print(new.c)
+        if(is.vector(B[[b]]$pareto.opt.c))  # Always keep a matrix when more than one pareto-optimal vector && (M.vec[b+1]>1))
+          B[[b]]$pareto.opt.c <- t(matrix(B[[b]]$pareto.opt.c))
+        if(is.vector(B[[b+1]]$pareto.opt.c))  # Always keep a matrix when more than one pareto-optimal vector && (M.vec[b+1]>1))
+        {
           new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                       matrix(B[[b+1]]$pareto.opt.c, nrow= length(new.v$pareto.inds), byrow=FALSE)) ) # only one ! 
-        else
+        } else
+        {
           new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=FALSE)) )
-
+        }
         print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
       }    
       #      if( length(new.v$pareto.inds)<=1 )
@@ -639,13 +645,19 @@ filter_solutions <- function(sol, loss.type, loss.params)
     if(n.pareto[b]>1)
     {
       cur.max.X <- max.X - sol[[b]]$max.X #   cur.opt.X <- opt.X - sol[[b]]$max.X 
-    
+      print("INPUT TO LOSS:")
+      print(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)))
+      print("n.pareto")
       lower <- loss_PS_mat(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)), loss.type, loss.params)  # Vectorized version 
+      print("OUTPUT OF LOSS, lower:")
+      print(lower)
       cur.good.inds <- which(lower <= upper)  # Filter all vectors .. 
       n.pareto.new[b] <- length(cur.good.inds)
       
-#      print("Filter: cur-good-inds:")
-#      print(cur.good.inds)
+      print("Filter: cur-good-inds:")
+      print(cur.good.inds)
+      print("Paret-X:")
+      print(sol[[b]]$pareto.opt.X)
       sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
       if(n.pareto.new[b]>1)
       {
