@@ -401,8 +401,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   } else
     run.blocks <- 1:(loss.params$n.blocks-1)  # already discard last block
   
-  #  for(b in run.blocks)
-  for(b in run.blocks) # [1:3])
+  for(b in run.blocks) # Now start to merge blocks 
   {
     block.start.time <- Sys.time()
     new.opt.X.upperbound = B[[b]]$opt.X
@@ -664,9 +663,9 @@ filter_solutions <- function(sol, loss.type, loss.params)
       sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
       if(n.pareto.new[b]>1)
       {
-        if(is.matrix(sol$pareto.opt.c)) 
+        if(is.matrix(sol[[b]]$pareto.opt.c)) 
         {
-          if(dim(sol$pareto.opt.c)[2]==1)
+          if(dim(sol[[b]]$pareto.opt.c)[2]==1)
             sol[[b]]$pareto.opt.c <- t(t(sol[[b]]$pareto.opt.c[cur.good.inds,]))
           else
             sol[[b]]$pareto.opt.c <- sol[[b]]$pareto.opt.c[cur.good.inds,]

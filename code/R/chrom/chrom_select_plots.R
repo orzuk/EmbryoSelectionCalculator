@@ -7,6 +7,7 @@ library(matrixNormal)
 library(Rfast)
 library(ecr)
 library(stringr)
+library(Hmisc)
 
 # root_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom"
 # figs_dir = "C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Figures\\chrom\\"
@@ -97,6 +98,7 @@ if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
 
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
+
 plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
       col="red", main=paste0("Number of vectors considered "))
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
@@ -136,6 +138,27 @@ for(i in 1:time.iters)
     dc.num.vecs[i,j] <- max(sol.dc$L.vec)
   } 
 }
+
+
+if(save.figs)
+  jpeg(paste0(figs_dir, 'bb_runtime_average.jpg'))
+errbar(1:params$max.M, colMeans(bb.num.vecs), colMeans(bb.num.vecs)+sqrt(colVars(bb.num.vecs)),colMeans(bb.num.vecs)-sqrt(colVars(bb.num.vecs)),
+       type='b', main="Num. Vectors", xlab="M", ylab="Num. vectors", col="red")
+errbar(1:params$max.M, colMeans(dc.num.vecs), colMeans(dc.num.vecs)+sqrt(colVars(dc.num.vecs)),colMeans(dc.num.vecs)-sqrt(colVars(dc.num.vecs)),
+       type='b', col="blue", add="TRUE")
+lines(1:params$max.M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
+
+#plot(2:params$max.M, bb.num.vecs, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
+#     col="red", main=paste0("Number of vectors considered "))
+#lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
+
+grid(NULL, NULL, lwd = 2)
+#legend(1, 0.8*params$C**params$max.M,   lwd=c(2,2), # legend appears in other plot
+#       c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), 
+#       cex=0.75, box.lwd = 0, box.col = "white", bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+if(save.figs)
+  dev.off()
+
 
 ###############################################################
 # Figure 2: gain as function of copies, for embryo and chromosomal selection
