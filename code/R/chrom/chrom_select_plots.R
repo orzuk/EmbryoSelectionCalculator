@@ -100,22 +100,28 @@ if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
 
 plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
-      col="red", main=paste0("Number of vectors considered "))
+      col="red", yaxt="n", xaxp = c(1, 23, 11), cex=1.25)  # , main=paste0("Number of vectors considered "))
+#pow.lab <- apply( rbind(rep("10^", 8), as.character(c(0:7))), 2, paste, collapse="")
+pow.lab <- parse(text=paste("10^", abs(seq(0, 7, 1)), sep=""))
+axis(2, 10^seq(0L,7L,1L), cex.axis=1.25, labels=pow.lab)
+
+
+
 lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
 lines(1:params$M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
 grid(NULL, NULL, lwd = 2)
 legend(1, 0.8*params$C**params$M,   lwd=c(2,2), 
        c(  "Exp.", "Branch&Bound", "Div&Conq"), col=c("black", "red", "blue"), 
-       cex=0.75, box.lwd = 0, box.col = "white", bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+       cex=1.25, box.lwd = 0, box.col = "white", bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
 if(save.figs)
   dev.off()
 
 
 # Figure 1.b.: average many runs 
-time.iters <- 3
+time.iters <- 10
 params$C = 2 # max(params$c.vec)
 
-params$max.M <- 10
+params$max.M <- 23
 num.m <- params$max.M - 1
 dc.num.vecs <- bb.num.vecs <- matrix(0, nrow=time.iters, ncol = params$max.M)
 for(i in 1:time.iters)
@@ -142,11 +148,17 @@ for(i in 1:time.iters)
 
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_average.jpg'))
-errbar(1:params$max.M, colMeans(bb.num.vecs), colMeans(bb.num.vecs)+sqrt(colVars(bb.num.vecs)),colMeans(bb.num.vecs)-sqrt(colVars(bb.num.vecs)),
-       type='b', main="Num. Vectors", xlab="M", ylab="Num. vectors", col="red")
-errbar(1:params$max.M, colMeans(dc.num.vecs), colMeans(dc.num.vecs)+sqrt(colVars(dc.num.vecs)),colMeans(dc.num.vecs)-sqrt(colVars(dc.num.vecs)),
-       type='b', col="blue", add="TRUE")
-lines(1:params$max.M, params$C ** c(1:params$M), type="l", col="black") # compare to gain just form embryo selection 
+errbar(1:params$max.M, log10(pmax(1, colMeans(bb.num.vecs))), 
+       log10(pmax(1, colMeans(bb.num.vecs))+sqrt(colVars(bb.num.vecs))), 
+       log10(pmax(1, colMeans(bb.num.vecs))-sqrt(colVars(bb.num.vecs))),
+       type='b', main="Num. Vectors", xlab="M", ylab="Num. vectors", col="red", errbar.col="red", yaxt="n") # , log="y")
+# errbar(1:params$max.M, colMeans(dc.num.vecs), colMeans(dc.num.vecs)+sqrt(colVars(dc.num.vecs)),colMeans(dc.num.vecs)-sqrt(colVars(dc.num.vecs)),
+errbar(1:params$max.M, log10(pmax(1, colMeans(dc.num.vecs))), 
+       log10(pmax(1, colMeans(dc.num.vecs))+sqrt(colVars(dc.num.vecs))), 
+       log10(pmax(1, colMeans(dc.num.vecs))-sqrt(colVars(dc.num.vecs))),
+       type='b', col="blue", errbar.col="blue", add="TRUE")
+lines(1:params$max.M, log10(params$C ** c(1:params$M)), type="l", col="black") # compare to gain just form embryo selection 
+axis(2, seq(0L,4L,1L), cex.axis=1.25, labels=parse(text=paste("10^", abs(seq(0, 4, 1)), sep="")))
 
 #plot(2:params$max.M, bb.num.vecs, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
 #     col="red", main=paste0("Number of vectors considered "))

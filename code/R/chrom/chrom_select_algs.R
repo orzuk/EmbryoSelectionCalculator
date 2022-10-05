@@ -372,18 +372,18 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
   print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
     
-  print("B-pareto-c-bli-filter:")
-  print(B[[1]]$pareto.opt.c)
+#  print("B-pareto-c-bli-filter:")
+#  print(B[[1]]$pareto.opt.c)
   B <- filter_solutions(B, loss.type, loss.params)
   
   n.pareto <- B$n.pareto
   B <- B$sol
-  print("B-pareto-c-im-filter:")
-  print(B[[1]]$pareto.opt.c)
+#  print("B-pareto-c-im-filter:")
+#  print(B[[1]]$pareto.opt.c)
   
   L.vec[(M.vec.cum[1]+1):M.vec.cum[2]] = B[[1]]$L.vec  # update start 
-  print("L.vec now:")
-  print(L.vec)
+#  print("L.vec now:")
+#  print(L.vec)
   L.upperbound <- loss_PS(opt.X.upperbound, loss.type, loss.params) + 0.00000000001  # > Loss_*
   new.L.upperbound = L.upperbound
   bb.time <- difftime(Sys.time() , start.time, units="secs") 
@@ -427,13 +427,13 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     new.c <- new.X <- c()
     ctr <- 0
     print(paste0("Merge loop on good inds sub-block=", b, ", #good.inds=", length(cur.good.inds), " out of ", n.pareto[b]))
-    print("B-pareto-c")
-    print(B[[b]]$pareto.opt.c)
+#    print("B-pareto-c")
+#    print(B[[b]]$pareto.opt.c)
     if(is.vector(B[[b]]$pareto.opt.X) && (M.vec[b]>1))
       B[[b]]$pareto.opt.X <- as.matrix(t(B[[b]]$pareto.opt.X))
     if(is.vector(B[[b]]$pareto.opt.c) && (M.vec[b]>1))
       B[[b]]$pareto.opt.c <- as.matrix(t(B[[b]]$pareto.opt.c))
-    print("START LOOP")
+#    print("START LOOP")
 #    print("B-pareto-c-now:")
 #    print(B[[b]]$pareto.opt.c)
     
@@ -443,7 +443,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     # MUST DISTINGUISH THE TWO!!!
     for(j in cur.good.inds)  # loop over all vectors in the current stack (heavy loop!)
     {
-      print(paste0("j is:", j))
+#      print(paste0("j is:", j))
       ctr <- ctr + 1
       if(ctr%%1000 == 0)
         print(paste0("Run ind ", ctr, " of ", length(cur.good.inds)))
@@ -459,7 +459,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
         new.v <- matrix(rep(B[[b]]$pareto.opt.X, n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       } else
       {
-        print(B[[b]]$pareto.opt.X[j,])
+#        print(B[[b]]$pareto.opt.X[j,])
         new.v <- matrix(rep(B[[b]]$pareto.opt.X[j,], n.pareto[b+1]), nrow=n.pareto[b+1], byrow=TRUE) + B[[b+1]]$pareto.opt.X # B[[b]]$pareto.opt.X[j,] + B[[b+1]]$pareto.opt.X  # take all vectors together
       }      
       new.v <- list(pareto.X = new.v, pareto.inds = 1:n.pareto[b+1]) #      new.v <- get_pareto_optimal_vecs(new.v)
@@ -467,7 +467,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
       new.L.lowerbound.vec = loss_PS_mat_rcpp(new.v$pareto.X + t(replicate(n.pareto[b+1], new.max.X)), loss.type, loss.params)    # Filter right away!!! 
       new.good.inds <- which(new.L.lowerbound.vec <= new.L.upperbound)  # L.upperbound (old)
       
-      print(paste0("Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
+#      print(paste0("Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
       if(length(new.good.inds)>0)  # add vectors 
       {
         new.v$pareto.X = new.v$pareto.X[new.good.inds,]  # filter new ones !!! 
@@ -495,7 +495,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
           new.c <- rbind(new.c, cbind(matrix(rep(B[[b]]$pareto.opt.c[j,], length(new.v$pareto.inds)), nrow=length(new.v$pareto.inds), byrow=TRUE), 
                                   matrix(B[[b+1]]$pareto.opt.c[new.v$pareto.inds,], nrow= length(new.v$pareto.inds), byrow=FALSE)) )
         }
-        print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
+#        print(paste0("FINISHED MERGE C NEW Passed ", length(new.good.inds), " out of: ", n.pareto[b+1]))
       }    
       #      if( length(new.v$pareto.inds)<=1 )
 #      {
@@ -520,7 +520,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     
     if(is.vector(new.c))
     {
-      print("Only one!")
+#      print("Only one!")
 #      print(B[[b+1]]$pareto.opt.X)
       n.pareto[b+1] <- 1 # only one vector 
     } else
@@ -590,7 +590,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 
   if(L == 1)  # output one vector at the end 
   {
-    print("RETURN L=1")
+#    print("RETURN L=1")
 #    return(list(opt.X = new.X, opt.c = new.c, opt.loss = min(loss.vec)))
   }
   else
@@ -647,19 +647,19 @@ filter_solutions <- function(sol, loss.type, loss.params)
     if(n.pareto[b]>1)
     {
       cur.max.X <- max.X - sol[[b]]$max.X #   cur.opt.X <- opt.X - sol[[b]]$max.X 
-      print("INPUT TO LOSS:")
-      print(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)))
-      print("n.pareto")
+#      print("INPUT TO LOSS:")
+#      print(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)))
+#      print("n.pareto")
       lower <- loss_PS_mat(sol[[b]]$pareto.opt.X + t(replicate(n.pareto[b], cur.max.X)), loss.type, loss.params)  # Vectorized version 
-      print("OUTPUT OF LOSS, lower:")
-      print(lower)
+#      print("OUTPUT OF LOSS, lower:")
+#      print(lower)
       cur.good.inds <- which(lower <= upper)  # Filter all vectors .. 
       n.pareto.new[b] <- length(cur.good.inds)
       
-      print("Filter: cur-good-inds:")
-      print(cur.good.inds)
-      print("Paret-X:")
-      print(sol[[b]]$pareto.opt.X)
+#      print("Filter: cur-good-inds:")
+#      print(cur.good.inds)
+#      print("Paret-X:")
+#      print(sol[[b]]$pareto.opt.X)
       sol[[b]]$pareto.opt.X <- sol[[b]]$pareto.opt.X[cur.good.inds,]
       if(n.pareto.new[b]>1)
       {
