@@ -83,14 +83,28 @@ c_onehot_to_vec <- function(C.mat)
 # X.c - a vector of length T that is sum of M vectors , one per each slice 
 compute_X_c_vec <- function(X, c.vec)
 {
+  M <- dim(X)[1]
   T <- dim(X)[3]
-  M = dim(X)[1]
   X.c <- rep(0, T)
   for( i in 1:M)
     X.c = X.c + X[i,c.vec[i],]
   
   return(X.c)
 }
+
+
+compute_X_c_vecs <- function(X, c.vecs)
+{
+  M <- dim(X)[1]
+  T <- dim(X)[3]
+  n.vecs <- dim(c.vecs)[1]
+  X.c <- matrix(0, nrow=n.vecs, ncol=T)
+  for( i in 1:M)
+    X.c = X.c + X[i,c.vecs[,i],]
+  
+  return(X.c)
+}
+
 
 # Reduce a tensor of size M*C*T and a matrix of size M*C to a risk vector of length T
 compute_X_C_mat <- function(X, C.mat)
@@ -130,7 +144,7 @@ compute_X_C_mat <- function(X, C.mat)
 ###############################################################
 loss_PS <- function(X.c, loss.type, loss.params)
 {
-#  X.c <- compute_X_C_mat(X, C)
+  
   if(loss.type == "quant")
     loss <- sum(X.c * loss.params$theta)
   
@@ -273,7 +287,7 @@ grad_loss_PS <- function(X, C, loss.type, loss.params)
     loss.params$eta <- 0 
   if((loss.type == "stabilizing") || (loss.type == "balancing"))
   {
-    return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2))  - loss.params$eta)
+    return (2 * tensor_vector_prod(X, loss.params$theta * rep(1, M) %*% tensor_matrix_prod(X, C, 2))  - 2*loss.params$eta*C)
   }
   
   if(loss.type == 'disease')
@@ -281,7 +295,7 @@ grad_loss_PS <- function(X, C, loss.type, loss.params)
     z.K <- qnorm(loss.params$K)
     Sigma.eps.inv <- 1/(1-sqrt(loss.params$h.ps))
     X.c <- compute_X_C_mat(X, C)
-    return(-  tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) - loss.params$eta) # added regularizer  
+    return(-  tensor_vector_prod(X, loss.params$theta * Sigma.eps.inv * dnorm( (z.K-X.c)*Sigma.eps.inv )) - 2*loss.params$eta*C) # added regularizer  
   }
 }  
 

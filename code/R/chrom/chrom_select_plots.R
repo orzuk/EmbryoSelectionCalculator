@@ -18,6 +18,12 @@ figs_dir = paste0(root_dir, "/Figures/")
 setwd(root_dir)
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
+# Read all functions for embryo-selection
+setwd('../')
+embryo.file.sources = list.files(pattern="*gain*.R$", full.names = TRUE)
+sapply(embryo.file.sources,source,.GlobalEnv)
+setwd(root_dir)
+
 
 start.time <- Sys.time()
 
@@ -118,7 +124,7 @@ if(save.figs)
 
 
 # Figure 1.b.: average many runs 
-time.iters <- 10
+time.iters <- 100
 params$C = 2 # max(params$c.vec)
 
 params$max.M <- 23
@@ -149,13 +155,14 @@ for(i in 1:time.iters)
 if(save.figs)
   jpeg(paste0(figs_dir, 'bb_runtime_average.jpg'))
 errbar(1:params$max.M, log10(pmax(1, colMeans(bb.num.vecs))), 
-       log10(pmax(1, colMeans(bb.num.vecs))+sqrt(colVars(bb.num.vecs))), 
-       log10(pmax(1, colMeans(bb.num.vecs))-sqrt(colVars(bb.num.vecs))),
-       type='b', main="Num. Vectors", xlab="M", ylab="Num. vectors", col="red", errbar.col="red", yaxt="n") # , log="y")
+       log10(pmax(1, colMeans(bb.num.vecs)+sqrt(colVars(bb.num.vecs)))), 
+       log10(pmax(1, colMeans(bb.num.vecs)-sqrt(colVars(bb.num.vecs)))),
+       type='b', main="Num. Vectors", xlab="M", ylab="Num. vectors", 
+       col="red", errbar.col="red", yaxt="n", xaxp = c(1, 23, 11), cex=1.25) # , log="y")
 # errbar(1:params$max.M, colMeans(dc.num.vecs), colMeans(dc.num.vecs)+sqrt(colVars(dc.num.vecs)),colMeans(dc.num.vecs)-sqrt(colVars(dc.num.vecs)),
 errbar(1:params$max.M, log10(pmax(1, colMeans(dc.num.vecs))), 
-       log10(pmax(1, colMeans(dc.num.vecs))+sqrt(colVars(dc.num.vecs))), 
-       log10(pmax(1, colMeans(dc.num.vecs))-sqrt(colVars(dc.num.vecs))),
+       log10(pmax(1, colMeans(dc.num.vecs)+sqrt(colVars(dc.num.vecs)))), 
+       log10(pmax(1, colMeans(dc.num.vecs)-sqrt(colVars(dc.num.vecs)))),
        type='b', col="blue", errbar.col="blue", add="TRUE")
 lines(1:params$max.M, log10(params$C ** c(1:params$M)), type="l", col="black") # compare to gain just form embryo selection 
 axis(2, seq(0L,4L,1L), cex.axis=1.25, labels=parse(text=paste("10^", abs(seq(0, 4, 1)), sep="")))
@@ -175,13 +182,14 @@ if(save.figs)
 ###############################################################
 # Figure 2: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
-params$c.vec <- 2:10
-params$iters <- 10
+params$c.vec <- 2:5
+params$iters <- 5
 loss.params$n.blocks = 4 
+loss.type <- "disease"
 params$M <- 23  # reduce to run fast !! 
 params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
-params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
-params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+#params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+#params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
 if(run.plots)
   gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
 #  for(i in 1:length(params$c.vec))
@@ -205,43 +213,143 @@ if(save.figs)
 }
 n.algs <- length(params$alg.str)
 plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
-     ylim = c(min(0,min(gain.res$gain.mat)), max(0, max(gain.res$gain.mat))), 
-     main=paste0("Gain for ", loss.type, " loss, M=", params$M, " C=", params$C, " T=", params$T))
+     xaxt="n", cex=1.25, ylim = c(min(0,min(gain.res$gain.mat)), max(0, max(gain.res$gain.mat)))) # 
+#     main=paste0("Gain for ", loss.type, " loss, M=", params$M, " C=", params$C, " T=", params$T))
 for(j in 2:n.algs)
   lines(params$c.vec, gain.res$gain.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
 grid(NULL, NULL, lwd = 2)
-legend(0.8 * max(params$c.vec), 0.2*max(gain.res$gain.mat),   lwd=c(2,2), 
-       c( "embryo", "chrom", "relax"), col=col.vec[1:n.algs], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+legend(0.8 * max(params$c.vec), 0.175*max(gain.res$gain.mat),   lwd=c(2,2), 
+       c( "embryo", "chrom", "relax"), col=col.vec[1:n.algs], cex=1.25, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+axis(1, 2:5, cex.axis=1.25, labels=c(2:5))
+
 if(save.figs)
   dev.off()
 ###############################################################
 
 
-#points(params$c.vec, gain.mat[,3], col="blue", pch=3) # compare to gain just form embryo selection 
-#legend(0.7 * max(params$c.vec), 0,   lwd=c(2,2), 
-#       c( "embryo", "chrom", "bb"), col=c("black", "red", "blue"), pch=c(4,1,3), cex=0.75) #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+###############################################################
+# Figure 2.b.: gain as function of ???, for stabilizing selection loss
+###############################################################
+params$c.vec <- 2:10
+params$iters <- 50
+loss.params$n.blocks = 23
+loss.params$eta <- 0.0
+
+loss.type <- "stabilizing"
+params$M <- 23  # reduce to run fast !! 
+#params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+#params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+params$alg.str <- c("embryo", "closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+if(run.plots)  
+  gain.stab <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
+
+overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
+print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))
+if(save.figs) # Plot: 
+{
+  # Save results to file: 
+  save(params, loss.type, loss.params, gain.stab, overall.plot.time, file="stab_gain_chrom.Rdata")
+  jpeg(paste0(figs_dir, 'stab_gain_chrom.jpg'))
+}
+n.algs <- length(params$alg.str)
+plot(params$c.vec, gain.stab$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
+     ylim = c(min(0,min(gain.stab$gain.mat)), max(0, max(gain.stab$gain.mat)))) 
+#     main=paste0("Gain for ", loss.type, " loss, M=", params$M, " C=", params$C, " T=", params$T))
+for(j in 2:n.algs)
+  lines(params$c.vec, gain.stab$gain.mat[,j], type="b", col=col.vec[j+1]) # compare to gain just form embryo selection 
+grid(NULL, NULL, lwd = 2)
+#legend(0.8 * max(params$c.vec), 0.2*max(gain.res$gain.mat),   lwd=c(2,2),  # use legend of previous figure 
+#       c(params$alg.str[1], "relax"), col=col.vec[c(1, 3:(n.algs+1))], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+if(save.figs)
+  dev.off()
 
 
-# points(params$c.vec, gain.mat, col="red", xlab="C", ylab="Gain Relaxed")
+#########################################################################
+# Debug: exact stabilizing worse than embryo?? (for large C)
+params$C <- 6
+Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
+X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+loss.params$C.init <- NULL
+sol.stab <- optimize_C(X, loss.type, loss.params, "closed_form")
+sol.rel <- optimize_C(X, loss.type, loss.params, "relax")
+sol.emb <- optimize_C(X, loss.type, loss.params, "embryo")
+loss.params$eta <- 0.03
+sol.stab.reg <- optimize_C(X, loss.type, loss.params, "closed_form")
+sol.rel.reg <- optimize_C(X, loss.type, loss.params, "relax")
 
-# Temp debug one simulation: 
-##X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-# PRoblem: not solved optimally 
-##loss.params$cpp = FALSE
-##sol.bb.R <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
-##loss.params$cpp = TRUE
-##sol.bb.cpp <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) - loss.params$eta * sum(C.mat**2) # TEMP
+loss_PS(compute_X_C_mat(X, sol.stab.reg$C.mat), loss.type, loss.params) - loss.params$eta * sum(sol.stab.reg$C.mat**2)
+loss_PS(compute_X_C_mat(X, sol.rel.reg$C.mat), loss.type, loss.params) - loss.params$eta * sum(sol.rel.reg$C.mat**2)
+loss_PS(compute_X_C_mat(X, sol.stab.reg$C.mat), loss.type, loss.params) - 2*loss.params$eta * sum(sol.stab.reg$C.mat**2)
+loss_PS(compute_X_C_mat(X, sol.rel.reg$C.mat), loss.type, loss.params) - 2*loss.params$eta * sum(sol.rel.reg$C.mat**2)
 
-##loss_PS_mat(X[1,,], loss.type, loss.params)
-##loss_PS_mat_rcpp(X[1,,], loss.type, loss.params)
+loss.params$C.init <- sol.stab.reg$C.mat
+sol.rel.reg.mixed <- optimize_C(X, loss.type, loss.params, "relax")
+loss_PS(compute_X_C_mat(X, sol.rel.reg.mixed$C.mat), loss.type, loss.params) - loss.params$eta * sum(sol.rel.reg.mixed$C.mat**2)
 
-#M = matrix(rnorm(100000), ncol=5)
-#t = Sys.time(); P = get_pareto_optimal_vecs_rcpp(M); 
-#get.pareto.time <- difftime(Sys.time() , t, units="secs") 
-#print(paste0("Num pareto: ", length(P$pareto.inds), ", get pareto time: (sec.): ", get.pareto.time))
-#t = Sys.time(); P.ecr = get_pareto_optimal_vecs(M)
-#get.pareto.ecr.time <- difftime(Sys.time() , t, units="secs") 
-#print(paste0("Num pareto ecr: ", length(P.ecr$pareto.inds), ", get pareto ecr time: (sec.): ", get.pareto.ecr.time))
+
+C.rand <- matrix(0, nrow = params$M, ncol = params$C)
+for(i in 1:params$M)
+{
+  C.rand[i, sample(1:params$C, 1)] <- 1
+}
+loss_PS(compute_X_C_mat(X, C.rand), loss.type, loss.params) - loss.params$eta * sum(C.rand**2)
+loss.str <- paste0("L embryo: ", round(sol.emb$opt.loss, 3), 
+             " exact: ", round(sol.stab$opt.loss, 3), 
+             " grad: ", round(sol.rel$opt.loss, 3))
+print(loss.str)
+
+n.rand <- 500
+c.rand <- matrix(sample(1:params$C, n.rand*params$M, replace=TRUE), nrow=n.rand)
+
+X.c.mat <- compute_X_c_vecs(X, c.rand)
+i = 19
+compute_X_c_vec(X, c.rand[i,]) - X.c[i,]
+loss.dist <- loss_PS_mat(X.c.mat, loss.type, loss.params)
+hist(loss.dist, breaks=50, main=loss.str)
+#########################################################################
+# End debug 
+#########################################################################
+
+
+
+
+###############################################################
+# Figure 3.: linear gain asymptotic vs. simulation 
+###############################################################
+c.vec <- 
+params$c.vec <- 2:10
+params$iters <- 50
+loss.params$n.blocks = 45
+loss.params$eta <- 0.0
+
+loss.type <- "quant"  # linear quantitative 
+params$M <- 23  # reduce to run fast !! 
+params$alg.str <- c("embryo", "closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+
+if(run.plots)  
+  gain.linear <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
+
+if(save.figs) # Plot: 
+{
+  jpeg(paste0(figs_dir, 'gain_linear_quant.jpg'))
+}
+n.algs <- length(params$alg.str)
+plot(params$c.vec, gain.linear$gain.mat[,1], xlab="C", ylab="Gain", type="p", col=col.vec[1],
+     ylim = c(min(0,min(gain.linear$gain.mat)), max(0, max(gain.linear$gain.mat)))) 
+for(j in 2:n.algs)
+  points(params$c.vec, gain.linear$gain.mat[,j], type="p", col=col.vec[j+1]) # compare to gain just form embryo selection 
+grid(NULL, NULL, lwd = 2)
+legend(0.8 * max(params$c.vec), 0.2*max(gain.linear$gain.mat),   lwd=c(2,2),  # use legend of previous figure 
+       c(params$alg.str[1], "chrom"), col=col.vec[c(1, 3:(n.algs+1))], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+
+# Add asymptotic formula 
+
+lines(params$c.vec, gain.linear.approx, type="l", col=col.vec[j+1]) # compare to gain just form embryo selection 
+
+
+if(save.figs)
+  dev.off()
 
 
 

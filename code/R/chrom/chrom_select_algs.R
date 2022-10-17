@@ -5,6 +5,8 @@ library(matrixcalc)
 library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
+library(quadprog)  # for stabilizing selection loss 
+
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
 source('chrom_select_funcs.R')
@@ -30,7 +32,7 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
   if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
     loss.params$eta <- 0 
   
-  M = dim(X)[1]
+  M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
   
@@ -55,19 +57,21 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
   
   
   loss.vec <- rep(0, loss.params$max.iters)
-  loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.type, loss.params)
+  loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.type, loss.params) - loss.params$eta * sum(C.init**2)
   delta.loss <- 999999
   mu.t <- loss.params$mu.init
   mu.t.vec <- rep(0, loss.params$max.iters)
   mu.t.vec[1] <- mu.t
   C.cur <- C.init
   t <- 1
-  print("start while")
+#  print("start while")
   while((abs(delta.loss) > loss.params$epsilon) & (t<=loss.params$max.iters)) # Run projected gradient descent
   {
-    if(t%%50 == 0)
+    if(t%%100 == 0)
       print(paste("gradient t=", t, " loss=", loss.vec[t]))
-    C.next <- C.cur - mu.t * grad_loss_PS(X, C.cur, loss.type, loss.params) # Gradient descent: move in minus gradient direction (minimization) 
+    cur.grad <- grad_loss_PS(X, C.cur, loss.type, loss.params)
+    cur.grad <- cur.grad / max(1, max(abs(cur.grad)))
+    C.next <- C.cur - mu.t * cur.grad # grad_loss_PS(X, C.cur, loss.type, loss.params) # Gradient descent: move in minus gradient direction (minimization) 
     C.cur <- project_stochastic_matrix(C.next) # Project onto the simplex 
     if(loss.params$decay == "exp") # exponential decay
       mu.t <- mu.t * loss.params$beta  # update step size 
@@ -78,18 +82,48 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
     t <- t+1
     mu.t.vec[t] <- mu.t
     
-    loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.type, loss.params)
+    loss.vec[t] <- loss_PS(compute_X_C_mat(X, C.cur), loss.type, loss.params) - loss.params$eta * sum(C.cur**2)
     delta.loss <- loss.vec[t] - loss.vec[t-1]    
   }
   
-  c.vec <- max.col(C.cur) # Rounding stage: convert to zero-one 
+#  c.vec <- max.col(C.cur) # Rounding stage: convert to zero-one 
+#  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
+#  opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
+
+  ret <- real_to_integer_solution(X, C.cur, loss.type, loss.params)
+  ret$loss.vec <- loss.vec[1:t]
+  ret$mu.t.vec <- mu.t.vec[1:t]
+  ret$C.mat <- C.cur
+  return(ret)
+      
+#  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t], 
+#              C.mat=C.cur))
+}
+
+
+# Helper function: convert real solution to integer solution
+real_to_integer_solution <- function(X, C.mat, loss.type, loss.params)
+{
+  M <- dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
+  if(!("n.candidates" %in% names(loss.params)))  
+    loss.params$n.candidates <- 1000 # generate random candidates
+
+  # First project onto the simplex: 
+  C.mat.in <- project_stochastic_matrix(C.mat)
+  c.vecs <- matrix(0, nrow = M, ncol = loss.params$n.candidates)
+  for(i in 1:M)
+    c.vecs[i,] <- sample(1:C, loss.params$n.candidates, replace = TRUE  , prob=C.mat.in[i,])
+
+  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
+  c.vec <- c.vecs[,i.min]
+#  c.vec <- max.col(C.mat) # Rounding stage: convert to zero-one 
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, loss.vec=loss.vec[1:t], mu.t.vec=mu.t.vec[1:t], 
-              C.mat=C.cur))
-}
-
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec))
+}  
 
 
 ###############################################################
@@ -362,15 +396,15 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     B[[b]]$max.X <- colMaxs(B[[b]]$pareto.opt.X, value = TRUE) # Get maximum at each coordinate 
     n.pareto[b] <-  length(B[[b]]$loss.vec)  # number of vectors in each block
     
-    print("B-pareto-c-start:")
-    print(B[[b]]$pareto.opt.c)
+#    print("B-pareto-c-start:")
+#    print(B[[b]]$pareto.opt.c)
     
   }
-  print("Sub-blocks # pareto-optimal vecs:")
-  print(n.pareto)
+#  print("Sub-blocks # pareto-optimal vecs:")
+#  print(n.pareto)
 
   start.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B, loss.type, loss.params)
-  print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
+#  print(paste0("Bounds: [", start.bounds$lowerbound, ", ", start.bounds$upperbound, "], eps=", start.bounds$upperbound-start.bounds$lowerbound))    
     
 #  print("B-pareto-c-bli-filter:")
 #  print(B[[1]]$pareto.opt.c)
@@ -414,7 +448,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     new.max.X = max.X - B[[b+1]]$max.X
     new.L.upperbound <- min(new.L.upperbound, loss_PS(new.opt.X.upperbound, loss.type, loss.params) + 0.00000000001)  # > Loss_*
     
-    print(paste0("Global upperbound=", L.upperbound, ", New upperbound=", new.L.upperbound))
+#    print(paste0("Global upperbound=", L.upperbound, ", New upperbound=", new.L.upperbound))
     
     #    B[[b]]$L.lowerbound.vec <- rep(0, n.pareto[b])   # lower-bound on the final score L* of every selection of current X 
 #    for(i in 1:n.pareto[b])
@@ -422,11 +456,10 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     B[[b]]$L.lowerbound.vec = loss_PS_mat(B[[b]]$pareto.opt.X + t(replicate(n.pareto[b], max.X)), loss.type, loss.params)  # Vectorized version 
     cur.good.inds <- which(B[[b]]$L.lowerbound.vec <= new.L.upperbound)  # L.upperbound (old)
     
-    
-    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
+#    print(paste0("num. good inds: ", length(cur.good.inds), " out of: ", length(B[[b]]$L.lowerbound.vec)))
     new.c <- new.X <- c()
     ctr <- 0
-    print(paste0("Merge loop on good inds sub-block=", b, ", #good.inds=", length(cur.good.inds), " out of ", n.pareto[b]))
+#    print(paste0("Merge loop on good inds sub-block=", b, ", #good.inds=", length(cur.good.inds), " out of ", n.pareto[b]))
 #    print("B-pareto-c")
 #    print(B[[b]]$pareto.opt.c)
     if(is.vector(B[[b]]$pareto.opt.X) && (M.vec[b]>1))
@@ -511,7 +544,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 #      new.X <- new.X$pareto.X
     }  # loop on cur good inds 
   # New: Try uniting only at the end!!! 
-    print(paste0("Finished loop on good. inds. Total #vectors before Pareto: =", dim(new.c)[1]))
+#    print(paste0("Finished loop on good. inds. Total #vectors before Pareto: =", dim(new.c)[1]))
     new.X <- get_pareto_optimal_vecs(new.X) # could be costly to run again all new.X against themselves 
 #    if( length(new.X$pareto.inds)<=1 )
 #      print(paste0("Num pareto union: ", length(new.X$pareto.inds)))
@@ -527,7 +560,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
       n.pareto[b+1] <- dim(new.X)[1] # update number of vectors in next layer
     
 
-    print(paste0("Merge sub-block=", b, ", L=", n.pareto[b+1]))
+#    print(paste0("Merge sub-block=", b, ", L=", n.pareto[b+1]))
     L.vec[(M.vec.cum[b+1]+1):(M.vec.cum[b+2]-1)] = L.vec[M.vec.cum[b+1]]  # update start 
 #    print("SET L.vec now:")
 #    print(L.vec)
@@ -554,11 +587,11 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
     #    cur.c <- new.c
     #    L.vec[i] = dim(new.X)[1]  
 
-    print(paste0("Finished Merge sub-block=", b, ", L=", n.pareto[b+1]))
+#    print(paste0("Finished Merge sub-block=", b, ", L=", n.pareto[b+1]))
     
     now.bounds <- bound_monotone_loss_pareto_blocks_PS_mat(B[(b+1):loss.params$n.blocks], loss.type, loss.params)
 #    print("BBB")
-    print(paste0("New-Bounds: [", now.bounds$lowerbound, ", ", now.bounds$upperbound, "], eps=", now.bounds$upperbound-now.bounds$lowerbound))    
+#    print(paste0("New-Bounds: [", now.bounds$lowerbound, ", ", now.bounds$upperbound, "], eps=", now.bounds$upperbound-now.bounds$lowerbound))    
     
         
   } # end loop on blocks 
@@ -572,7 +605,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   L <- n.pareto[b+1]
   if(is.null(L)) # one dimensional array 
   {
-    print("L=1 !!! ")
+#    print("L=1 !!! ")
     L = 1
     loss.vec = loss_PS(new.X, loss.type, loss.params)
   }  else
@@ -678,8 +711,8 @@ filter_solutions <- function(sol, loss.type, loss.params)
         sol[[b]]$max.X  <- colMaxs(sol[[b]]$pareto.opt.X, value = TRUE) # update also max 
     }
   
-  print("AFTER FILTERING NEW # VECTORS:")
-  print(n.pareto.new)
+#  print("AFTER FILTERING NEW # VECTORS:")
+#  print(n.pareto.new)
   return(list(sol=sol, n.pareto=n.pareto.new))  # updated array 
 }  
 
@@ -711,7 +744,7 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
   #  A <- grad_loss_PS(X, C, "stabilizing", loss.params)
   
-  A <- -loss.params$eta * eye(M*C) # new: add regularization # matrix(0, nrow=M*C, ncol=M*C)
+  A <- -2 * loss.params$eta * eye(M*C) # new: add regularization # matrix(0, nrow=M*C, ncol=M*C)
   for(k in c(1:T))
     A <- A + 2 * loss.params$theta[k] *  as.vector(t(X[,,k])) %*% t(as.vector(t(X[,,k])))
   E <- matrix(0, nrow=M, ncol=M*C)
@@ -740,15 +773,60 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
     v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse
   C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
   
-  c.p.v <- compute_X_C_mat(X, C.mat)
-  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params)
-  c.vec <- max.col(C.mat) # Convert to matrix and take max of each row 
+#  v2 <- v + (eye(M*(C+1)) - pinv(Big.A)%*%Big.A) %*% rnorm(M*(C+1))
+#  C.mat <- matrix(v2[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
   
-  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
-  opt.X <- compute_X_c_vec(X, c.vec)
+  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
+
+#  print("TOTAL LOSS IS: ")
+#  print(loss.mat - loss.params$eta * sum(C.mat**2))
+#  c.stacked <- as.vector(C.mat)
+#  c.stacked <- as.vector(t(C.mat))
+#  print("TOTAL LOSS VEC IS:")
+#  print(0.5 * t(c.stacked) %*% A %*% c.stacked)
+#  print(0.5 * t(c.stacked) %*% A.clean %*% c.stacked)
+#  
+#  c.stacked.better <- as.vector((sol.rel.reg$C.mat))
+#  print(0.5 * t(c.stacked.better) %*% A %*% c.stacked.better)
+#  
+#  c.stacked.better <- as.vector((t(sol.rel.reg$C.mat)))
+#  A.clean <- A + 2 * loss.params$eta * eye(M*C) 
+#  print(0.5 * t(c.stacked.better) %*% A.clean %*% c.stacked.better)
+#  A.dirty <- -2 * loss.params$eta * eye(M*C)
+#  print(0.5 * t(c.stacked.better) %*% A.dirty %*% c.stacked.better)
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
-              Big.A=Big.A, b=b))
+
+  
+  # NEW: Do quadratic programming including inequality constraints (not closed-form)
+#  if(quad.prog)
+#  {
+#    sol.qp <- quadprog(A.clean, rep(0, params$M*params$C), A = NULL, b = NULL,  # use pracma function
+#             Aeq = E, beq = rep(1, params$M), lb = rep(0, params$M*params$C), ub = rep(1, params$M*params$C))  # WORKS ONLY FOR POS.DEF!!
+
+#    sol.qp <- solveqp(A.clean, h=NULL, lb = rep(0, params$M*params$C), ub = rep(1, params$M*params$C), 
+#                      A = E, Alb = rep(1, params$M), Aub = rep(1, params$M)) # equality constraint
+#    A.clean <- diag( params$M*params$C)
+#    sol.qp <- QPmin(G = A.clean, g = rep(0, params$M*params$C), A = t(E), b = rep(1, params$M), neq = params$M,
+#                    Lb = rep(0, params$M*params$C), Ub = NULL)
+#                       Lb = rep(0, params$M*params$C), Ub = rep(1, params$M*params$C), tol = 1e-06)  # WORKS ONLY FOR POS.DEF!!
+
+#      }
+  
+  
+#  c.vec <- max.col(C.mat) # Convert to matrix and take max of each row 
+#  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
+#  opt.X <- compute_X_c_vec(X, c.vec)
+
+  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
+  ret$C.mat <- C.mat
+  ret$loss.mat <- loss.mat
+  ret$Big.A <- Big.A
+  ret$b <- ret$b
+  return(ret)
+  
+    
+#  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
+#              Big.A=Big.A, b=b))
 }
 
 
@@ -815,10 +893,10 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
     return(optimize_C_embryo(X, loss.type, loss.params))
   if(loss.type == "quant") # easy optimization for quantitative traits 
     return(optimize_C_quant(X, loss.type, loss.params))
+  if((alg.str == "closed_form") && (loss.type == "stabilizing"))
+    return(optimize_C_stabilizing_exact(X, loss.type, loss.params))
   if(alg.str == "relax")  # here we need to set init
     return(optimize_C_relax(X, loss.params$C.init, loss.type, loss.params))  
-  if(loss.type == "stabilizing")
-    return(optimize_C_stabilizing_exact(X, loss.type, loss.params))
   if(alg.str == "branch_and_bound")
     return(optimize_C_branch_and_bound(X, loss.type, loss.params))
   if(alg.str == "branch_and_bound_lipschitz")
@@ -865,7 +943,7 @@ compute_gain_sim <- function(params, loss.type, loss.params)
     params$max.C <- max(params$c.vec)
     Sigma.K <- 0.5*diag(params$max.C) + matrix(0.5, nrow=params$max.C, ncol=params$max.C)   # kinship-correlations matrix 
     
-    print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$max.C, " ", params$T))
+#    print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$max.C, " ", params$T))
     X = simulate_PS_chrom_disease_risk(params$M, params$max.C, params$T, Sigma.T, Sigma.K, params$sigma.blocks, rep(0.5, k))
 
     # New: loop on all methods (Use same input X to reduce variance) 

@@ -1,5 +1,5 @@
 # Create Supp. Fig. 1 in the paper - variance of G
-setwd('C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R')  # change to your path
+setwd('C:\\Code\\GitHub\\EmbryoSelectionCalculator\\code\\R')  # change to your path
 source('gain_moments.R')
 data = read.csv("../../Data/var_gain.txt",sep="\t")
 ns = data$n_sibs # number of siblings
@@ -10,8 +10,8 @@ var.emp = data$gain_var[2:nm] # empirical variance (simulations from longevity c
 sigma.z = 6 # variance of trait
 r2ps = 0.243 # proportion of variance explained by PGS
 
-var.th <- gain.moments(ns, 1, 'approx', 1, 1)$Var.G * sigma.z^2 * r2ps # asymptotic approximation
-var.num <- gain.moments(ns, 1, 'exact', 1, 1)$Var.G * sigma.z^2 * r2ps # numeric integral
+var.th <- gain_moments(ns, 1, 'approx', 1, 1)$Var.G * sigma.z^2 * r2ps # asymptotic approximation
+var.num <- gain_moments(ns, 1, 'exact', 1, 1)$Var.G * sigma.z^2 * r2ps # numeric integral
 
 # png('../../Figures/GainVar.png', res=300) # save file 
 png('../../Figures/GainVar.png', width = 350, height = 300, units='mm', res = 300)

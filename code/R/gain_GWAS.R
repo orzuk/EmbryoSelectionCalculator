@@ -12,7 +12,7 @@ source('gain_moments.R')
 # N - sample size for which we want to predict
 # n - # of embryos
 #
-mean.gain.from.GWAS <- function(h2snp, r2ps, N_discovery, M=-1,  N, n)
+mean_gain_from_GWAS <- function(h2snp, r2ps, N_discovery, M=-1,  N, n)
 {
   # First compute the expected variance explained in a GWAS of size N: 
   if(M==-1)
@@ -20,7 +20,7 @@ mean.gain.from.GWAS <- function(h2snp, r2ps, N_discovery, M=-1,  N, n)
   r2 <- h2snp / (1 + M/(N*h2snp)) # variance explained for a given N
   
   # Next, evaluate the gain: 
-  return( list(E.G=gain.moments(n, r2, 'exact', 1)$E.G, M=M) )
+  return( list(E.G=gain_moments(n, r2, 'exact', 1)$E.G, M=M) )
 }
 
 # Usage example (Supp. Fig. 3 from thepaper)
@@ -46,7 +46,7 @@ plot_gain <- function(IQ, WGS, label, n)
     tstr = sprintf("Height (array)")
     if(WGS) # whole genome sequencing
     {
-      M = 10 *  mean.gain.from.GWAS(h2snp, known_r2, known_N, -1, 1, n)$M # assume 10-fold increase in effective # of markers 
+      M = 10 *  mean_gain_from_GWAS(h2snp, known_r2, known_N, -1, 1, n)$M # assume 10-fold increase in effective # of markers 
       known_N = 21620
       h2snp = 0.79 # heritability including rare variants 
       fname = "Height_wgs"
@@ -58,7 +58,7 @@ plot_gain <- function(IQ, WGS, label, n)
   Ns <- logspace(4, maxN, 50)
   G <- numeric(length(Ns))
   for(i in seq_along(Ns))
-    G[i] <- sigma_z * mean.gain.from.GWAS(h2snp, known_r2, known_N, M, Ns[i], n)$E.G # use function 
+    G[i] <- sigma_z * mean_gain_from_GWAS(h2snp, known_r2, known_N, M, Ns[i], n)$E.G # use function 
 
   xticks = 10^(4:maxN)
   par(mar=c(5,5.5,2.5,2))
@@ -70,10 +70,13 @@ plot_gain <- function(IQ, WGS, label, n)
   segments(Ns[ind],0,Ns[ind],G[ind],col="red",lwd=1.5)
   segments(1,G[ind],Ns[ind],G[ind],col="red",lwd=1.5)
 }
-
+run.plot.gwas = FALSE
+if(run.plot.gwas==TRUE)
+{
 # Plot the 3 scenarios 
 n = 10
 par(mfrow=c(1,3))
 plot_gain(0,0,'A', n)
 plot_gain(1,0,'B', n)
 plot_gain(0,1,'C', n)
+}

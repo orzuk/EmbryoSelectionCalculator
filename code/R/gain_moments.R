@@ -5,7 +5,7 @@
 # subtract.mean - subtract mean of x_i. If zero, we compute moments of the top score
 # sib.flag - include correlations between siblings 
 #
-gain.moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
+gain_moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
 {
   switch (method.str,
           'approx'={
@@ -17,8 +17,8 @@ gain.moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
             E.G <- Var.G <- numeric(length(n))
             for(i in 1:length(n)) # vectorize
             {
-              E.G[i] = (n[i]/ (sqrt(2)^sib.flag)) * integrate( gauss.poly, -10, 10, n=c(n[i]-1,1,1))$value
-              Var.G[i] = 0.5^sib.flag * n[i] * integrate(gauss.poly, -10, 10, n=c(n[i]-1,1,2))$value - E.G[i]^2
+              E.G[i] = (n[i]/ (sqrt(2)^sib.flag)) * integrate( gauss_poly, -10, 10, n=c(n[i]-1,1,1))$value
+              Var.G[i] = 0.5^sib.flag * n[i] * integrate(gauss_poly, -10, 10, n=c(n[i]-1,1,2))$value - E.G[i]^2
             }
           }
   ) # end switch 
@@ -32,7 +32,21 @@ gain.moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
 
 # Helper functios for integration:
 # Phi(t)^n[1] * phi(t)^n[2] * t^n[3]  
-gauss.poly <- function(t, n)
+gauss_poly <- function(t, n)
 {
   return (pnorm(t)^n[1]*dnorm(t)^n[2]*t^n[3])
 }
+
+
+# Mean gap between selected embryo (top PS) and best embryo (top phenotype z)
+# n - # of embryos
+# Sigma - variance-covariance matrix of traits
+# w - weight vector for each trait
+# method.str - approx or exact
+#
+multi_trait_gain_mean <- function(n, Sigma, w, method.str)
+{	
+  return ( gain_moments(n, t(w) %*% Sigma %*% w / 2, method.str)$E.G )
+}
+
+
