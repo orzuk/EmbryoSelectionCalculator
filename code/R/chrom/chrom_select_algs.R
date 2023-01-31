@@ -212,7 +212,7 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
   if(length(dim(X)) == 2) # M == 1) # Nothing to optimize here!
   {
     M <- 1; C <- dim(X)[1]; T <- dim(X)[2]
-    print(paste0("M, C, T:", M, " ", C, " ", T))
+#    print(paste0("M, C, T:", M, " ", C, " ", T))
     loss.vec <- loss_PS_mat(X, loss.type, loss.params) # TO FILL! !! 
     i.min <- which.min(loss.vec)
     par.X <- get_pareto_optimal_vecs(X) # Save only Pareto-optimal vectors. Needs fixing 
@@ -228,16 +228,16 @@ optimize_C_branch_and_bound <- function(X, loss.type, loss.params)
                 pareto.opt.X= par.X$pareto.X, pareto.opt.c = t(t(par.X$pareto.inds))))
   }
   M <- dim(X)[1]; C <- dim(X)[2]; T <- dim(X)[3]
-  print(paste0("M, C, T:", M, " ", C, " ", T))
+#  print(paste0("M, C, T:", M, " ", C, " ", T))
   
   if(loss.params$cpp) # new: run in cpp
   {
-    print("Start optimize B&B CPP") 
+#    print("Start optimize B&B CPP") 
     return(optimize_C_branch_and_bound_rcpp(X, loss.type, loss.params))
   }
   if(!("lipschitz" %in% names(loss.params)))
     loss.params$lipschitz <- FALSE  # Default: no lipschitz constant (vector)
-  print("Start optimize B&B R") 
+#  print("Start optimize B&B R") 
   
   
   par.X <- get_pareto_optimal_vecs(X[1,,]) # Save only Pareto-optimal vectors. Needs fixing 
@@ -370,7 +370,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
 {
   # Add timing: 
   start.time <- Sys.time()
-  print("Start B&B Div. Conq. in R !!! ")
+#  print("Start B&B Div. Conq. in R !!! ")
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
   if(!("n.blocks" %in% names(loss.params)))  
     loss.params$n.blocks <- 2  # default: divide to two blocks 
@@ -598,7 +598,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   
 #  print("merge!")
   merge.time <- difftime(Sys.time() , start.time, units="secs") - bb.time
-  print(paste0("merge time (sec.):", merge.time))
+#  print(paste0("merge time (sec.):", merge.time))
   
   
   # Finally find the cost-minimizer out of the Pareto-optimal vectors
@@ -618,7 +618,7 @@ optimize_C_branch_and_bound_divide_and_conquer <- function(X, loss.type, loss.pa
   i.min <- which.min(loss.vec) # find vector minimizing loss 
   
   loss.eval.time <- difftime(Sys.time() , start.time, units="secs") - bb.time - merge.time 
-  print(paste0("loss eval time (sec.):", loss.eval.time))
+#  print(paste0("loss eval time (sec.):", loss.eval.time))
   
 
   if(L == 1)  # output one vector at the end 
@@ -889,20 +889,32 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
   start.time <- Sys.time()
   M <- dim(X)[1]; C <- dim(X)[2];  T <- dim(X)[3]
   
-  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
-    return(optimize_C_embryo(X, loss.type, loss.params))
-  if(loss.type == "quant") # easy optimization for quantitative traits 
-    return(optimize_C_quant(X, loss.type, loss.params))
-  if((alg.str == "closed_form") && (loss.type == "stabilizing"))
-    return(optimize_C_stabilizing_exact(X, loss.type, loss.params))
-  if(alg.str == "relax")  # here we need to set init
-    return(optimize_C_relax(X, loss.params$C.init, loss.type, loss.params))  
-  if(alg.str == "branch_and_bound")
-    return(optimize_C_branch_and_bound(X, loss.type, loss.params))
-  if(alg.str == "branch_and_bound_lipschitz")
-    return(optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params))
-  if(alg.str == "branch_and_bound_divide_and_conquer")
-    return(optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params))
+  ret = switch(alg.str,
+    "embryo" = optimize_C_embryo(X, loss.type, loss.params), 
+    "quant" = optimize_C_quant(X, loss.type, loss.params),
+    "closed_form" = optimize_C_stabilizing_exact(X, loss.type, loss.params),
+    "relax" = optimize_C_relax(X, loss.params$C.init, loss.type, loss.params),
+    "branch_and_bound" = optimize_C_branch_and_bound(X, loss.type, loss.params),
+    "branch_and_bound_lipschitz" = optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params),
+    "branch_and_bound_divide_and_conquer" = optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params)
+  )
+    
+#  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
+#    return(optimize_C_embryo(X, loss.type, loss.params))
+#  if(loss.type == "quant") # easy optimization for quantitative traits 
+#    return(optimize_C_quant(X, loss.type, loss.params))
+#  if((alg.str == "closed_form") && (loss.type == "stabilizing"))
+#    return(optimize_C_stabilizing_exact(X, loss.type, loss.params))
+#  if(alg.str == "relax")  # here we need to set init
+#    return(optimize_C_relax(X, loss.params$C.init, loss.type, loss.params))  
+#  if(alg.str == "branch_and_bound")
+#    return(optimize_C_branch_and_bound(X, loss.type, loss.params))
+#  if(alg.str == "branch_and_bound_lipschitz")
+#    return(optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params))
+#  if(alg.str == "branch_and_bound_divide_and_conquer")
+#    return(optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params))
+  
+  return(list(alg.ouptut=ret,  run.time = difftime(Sys.time(), start.time, units = "secs")[[1]]))
 }  
 
 
@@ -992,5 +1004,6 @@ compute_gain_sim <- function(params, loss.type, loss.params)
     gain.mat[,a] <- t(colMeans(rand.mat) - colMeans(gain.tensor[,,a])) # compute mean random loss minus optimal loss.
   return(list(gain.mat=gain.mat, gain.tensor=gain.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor)) # Need to reduce the mean gain without selection 
 }
+
 
 

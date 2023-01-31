@@ -27,7 +27,7 @@ chr.lengths <- c(0.0821,0.0799,0.0654,0.0628,0.0599,0.0564,0.0526,0.0479,0.0457,
 # T - number of traits
 # Sigma.T - covariance of traits
 # Sigma.K - covariance of individuals
-# sigma.blocks - ??
+# sigma.blocks - variance explained by each block
 # prev - vector of disease prevalences 
 # 
 # Output: 
@@ -39,19 +39,17 @@ simulate_PS_chrom_disease_risk <- function(M, C, T, Sigma.T, Sigma.K, sigma.bloc
   sim.vec <- 0
   if(sim.vec)
   {
-#    print("Sim vec")  
     for(i in 1:M)
       for(j in 1:C)
         X[i,j,] <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * sigma.blocks[i]
   } else
   {   # New: don't assume independence, use Kinship coefficient
-#    print("Sim mat")  
     for(i in 1:M)
       X[i,,] <- rmatnorm(1, Sigma.T, Sigma.K, M=matrix(0, nrow=T, ncol=C))  * sigma.blocks[i]  # V, M = matrix(0, nrow = nrow(U), ncol = nrow(V)))
   }   
 
 # Next simulate disease D (not needed for now)
-#  E <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * h2 # add envirounmental noise 
+#  E <- rmvnorm(1, mu = rep(0, T), sigma = Sigma.T) * h2 # add environmental noise 
 #  D = X + G_X + E 
   return(X)    
 #  return(list(X=X, D=D))

@@ -20,7 +20,7 @@ source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 # Read all functions for embryo-selection
 setwd('../')
-embryo.file.sources = list.files(pattern="*gain*.R$", full.names = TRUE)
+embryo.file.sources = list.files(pattern="*.R$", full.names = TRUE)
 sapply(embryo.file.sources,source,.GlobalEnv)
 setwd(root_dir)
 
@@ -83,7 +83,7 @@ save.figs <- FALSE
 
 
 ###############################################################
-# Figure 1: Size of tree for Branch-and-Bound for chromosomal selection
+# Figure 2.a.: Size of tree for Branch-and-Bound for chromosomal selection
 ###############################################################
 params$C = 2 # max(params$c.vec)
 Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
@@ -96,6 +96,12 @@ loss.params$lipschitz <- TRUE
 loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
 sol.bb.lip <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
 
+bb.runtime <- sol.bb$run.time
+sol.bb <- sol.bb$alg.ouptut
+bb.lip.runtime <- sol.bb.lip$run.time
+sol.bb.lip <- sol.bb.lip$alg.ouptut
+
+
 if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
 {
   print("ERROR!!! TWO ALGORITHMS GAVE DIFFERENT RESULTS!!!")
@@ -103,10 +109,10 @@ if(any(sol.bb.lip$opt.c != sol.bb$opt.c)) # check that we got the same solution!
   print("GOOD!!! TWO ALGORITHMS GAVE THE SAME RESULTS!!!")
 
 if(save.figs)
-  jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'))
+  jpeg(paste0(figs_dir, 'bb_runtime_chrom.jpg'),  res=300) # increase resolution
 
 plot(1:params$M, sol.bb$L.vec, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
-      col="red", yaxt="n", xaxp = c(1, 23, 11), cex=1.25)  # , main=paste0("Number of vectors considered "))
+     col="red", yaxt="n", xaxp = c(1, 23, 11), cex=1.25)  # , main=paste0("Number of vectors considered "))
 #pow.lab <- apply( rbind(rep("10^", 8), as.character(c(0:7))), 2, paste, collapse="")
 pow.lab <- parse(text=paste("10^", abs(seq(0, 7, 1)), sep=""))
 axis(2, 10^seq(0L,7L,1L), cex.axis=1.25, labels=pow.lab)
@@ -123,31 +129,48 @@ if(save.figs)
   dev.off()
 
 
-# Figure 1.b.: average many runs 
-time.iters <- 100
+###############################################################
+# Figure 2.b.: average many runs 
+###############################################################
+time.iters <- 10 # 100
 params$C = 2 # max(params$c.vec)
 
-params$max.M <- 23
+params.C.vec <- c(2,4,6)
+params$max.M <- 10 # 23
 num.m <- params$max.M - 1
-dc.num.vecs <- bb.num.vecs <- matrix(0, nrow=time.iters, ncol = params$max.M)
+
+
+dc.num.vecs <- bb.num.vecs <- bb.time.mat <- dc.time.mat <- vector("list", length(params.C.vec))
+for(k in 1:length(params.C.vec))
+  dc.num.vecs[[k]] <- bb.num.vecs[[k]] <- bb.time.mat[[k]] <- dc.time.mat[[k]] <- matrix(0, nrow=time.iters, ncol = params$max.M)
+
 for(i in 1:time.iters)
 {
   for(j in 2:params$max.M)
   {
+    
+    
     params$M <- j
     print(paste0("Run iter=", i, ", ", j, " out of ", time.iters, " , ", params$max.M))
-    Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
-    X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
-    loss.params$lipschitz <- FALSE
-    bb.start.time <- Sys.time()
-    sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
-    print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
-    loss.params$lipschitz <- TRUE
-    loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
-    sol.dc <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
     
-    bb.num.vecs[i,j] <- max(sol.bb$L.vec)
-    dc.num.vecs[i,j] <- max(sol.dc$L.vec)
+    for(k in 1:length(params.C.vec))
+    {    
+      params$C <- params.C.vec[k]
+      Sigma.K <- 0.5*diag(params$C) + matrix(0.5, nrow=params$C, ncol=params$C)   # kinship-correlations matrix 
+      X = simulate_PS_chrom_disease_risk(params$M, params$C, params$T, Sigma.T, Sigma.K, sigma.blocks, rep(0.5, k))
+      loss.params$lipschitz <- FALSE
+      bb.start.time <- Sys.time()
+      sol.bb <- optimize_C(X, loss.type, loss.params, "branch_and_bound")
+      print(paste0("Overall B&B Running Time (sec.):", difftime(Sys.time() , bb.start.time, units="secs")))
+      loss.params$lipschitz <- TRUE
+      loss.params$lipschitz.alpha <- lipschitz_loss_PS(loss.type, loss.params)  
+      sol.dc <- optimize_C(X, loss.type, loss.params, "branch_and_bound_divide_and_conquer") #optimize_C_branch_and_bound_divide_and_conquer
+      
+      bb.num.vecs[[k]][i,j] <- max(sol.bb$alg.ouptut$L.vec)
+      dc.num.vecs[[k]][i,j] <- max(sol.dc$alg.ouptut$L.vec)
+      bb.time.mat[[k]][i,j] <- sol.bb$run.time
+      dc.time.mat[[k]][i,j] <- sol.dc$run.time
+    }
   } 
 }
 
@@ -179,8 +202,40 @@ if(save.figs)
   dev.off()
 
 
+
 ###############################################################
-# Figure 2: gain as function of copies, for embryo and chromosomal selection
+# Figure 2.NEW.: Running time
+###############################################################
+
+max.y <- 0
+for(k in 1:length(params.C.vec))
+{
+  max.y <- max( max.y, max(colMeans(bb.time.mat[[k]]) + sqrt(colVars(bb.time.mat[[k]]))), 
+                max(colMeans(dc.time.mat[[k]]) + sqrt(colVars(dc.time.mat[[k]]))) )
+}  
+
+plot(1:params$max.M, log10(pmax(1, colMeans(bb.time.mat[[1]]))), ylim = c(-1, log10(max.y*1.05)), 
+     xlab="M", ylab="Run. time (sec.)", cex=1.25) 
+for(k in 1:length(params.C.vec))
+{
+  errbar(1:params$max.M, log10(pmax(1, colMeans(bb.time.mat[[k]]))), 
+         log10(pmax(1, colMeans(bb.time.mat[[k]])+sqrt(colVars(bb.time.mat[[k]])))), 
+         log10(pmax(1, colMeans(bb.time.mat[[k]])-sqrt(colVars(bb.time.mat[[k]])))),
+         type='b', main="Num. Vectors", xlab="M", ylab="Run. time (sec.)", 
+         col="red", errbar.col="red",  cex=1.25, add="TRUE") # , log="y") # yaxt="n", xaxp = c(1, 23, 11), 
+  errbar(1:params$max.M, log10(pmax(1, colMeans(dc.time.mat[[k]]))), 
+         log10(pmax(1, colMeans(dc.time.mat[[k]])+sqrt(colVars(dc.time.mat[[k]])))), 
+         log10(pmax(1, colMeans(dc.time.mat[[k]])-sqrt(colVars(dc.time.mat[[k]])))),
+         type='b', col="blue", errbar.col="blue", add="TRUE")
+} 
+legend(1, 2*max( colMeans(bb.time.mat)),   lwd=c(2,2), 
+       c(  "Branch&Bound", "Div&Conq"), col=c( "red", "blue"), 
+       cex=1.25, box.lwd = 0, box.col = "white", bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+
+
+
+###############################################################
+# Figure 2.c.: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
 params$c.vec <- 2:5
 params$iters <- 5
@@ -228,7 +283,7 @@ if(save.figs)
 
 
 ###############################################################
-# Figure 2.b.: gain as function of ???, for stabilizing selection loss
+# Figure 2.d.: gain as function of ???, for stabilizing selection loss
 ###############################################################
 params$c.vec <- 2:10
 params$iters <- 50
@@ -295,8 +350,8 @@ for(i in 1:params$M)
 }
 loss_PS(compute_X_C_mat(X, C.rand), loss.type, loss.params) - loss.params$eta * sum(C.rand**2)
 loss.str <- paste0("L embryo: ", round(sol.emb$opt.loss, 3), 
-             " exact: ", round(sol.stab$opt.loss, 3), 
-             " grad: ", round(sol.rel$opt.loss, 3))
+                   " exact: ", round(sol.stab$opt.loss, 3), 
+                   " grad: ", round(sol.rel$opt.loss, 3))
 print(loss.str)
 
 n.rand <- 500
@@ -317,39 +372,42 @@ hist(loss.dist, breaks=50, main=loss.str)
 ###############################################################
 # Figure 3.: linear gain asymptotic vs. simulation 
 ###############################################################
-c.vec <- 
-params$c.vec <- 2:10
-params$iters <- 50
-loss.params$n.blocks = 45
-loss.params$eta <- 0.0
-
-loss.type <- "quant"  # linear quantitative 
-params$M <- 23  # reduce to run fast !! 
-params$alg.str <- c("embryo", "closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
-
-if(run.plots)  
-  gain.linear <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
-
-if(save.figs) # Plot: 
+plot_linear_asymptotic_vs_sim <- function(params, save.figs = TRUE)
 {
-  jpeg(paste0(figs_dir, 'gain_linear_quant.jpg'))
+  
+  params$c.vec <- 2:10
+  params$iters <- 50
+  loss.params$n.blocks = 45
+  loss.params$eta <- 0.0
+  Sigma.T <- rWishart(1, df, Sigma)[,,1]  # traits correlation matrix 
+  
+  loss.type <- "quant"  # linear quantitative 
+  params$M <- 23  # reduce to run fast !! 
+  params$alg.str <- c("embryo", "closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+  
+  if(run.plots)  
+    gain.linear <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
+  
+  if(save.figs) # Plot: 
+  {
+    jpeg(paste0(figs_dir, 'gain_linear_quant.jpg'))
+  }
+  n.algs <- length(params$alg.str)
+  plot(params$c.vec, gain.linear$gain.mat[,1], xlab="C", ylab="Gain", type="p", col=col.vec[1],
+       ylim = c(min(0,min(gain.linear$gain.mat)), max(0, max(gain.linear$gain.mat)))) 
+  for(j in 2:n.algs)
+    points(params$c.vec, gain.linear$gain.mat[,j], type="p", col=col.vec[j+1]) # compare to gain just form embryo selection 
+  grid(NULL, NULL, lwd = 2)
+  legend(0.8 * max(params$c.vec), 0.2*max(gain.linear$gain.mat),   lwd=c(2,2),  # use legend of previous figure 
+         c(params$alg.str[1], "chrom"), col=col.vec[c(1, 3:(n.algs+1))], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+  
+  # Add asymptotic formula (depends heavily on Sigma.t)
+  gain.linear.approx <- multi_trait_gain_mean(params$c.vec, Sigma.T, loss.params$theta, 'approx')
+  lines(params$c.vec, gain.linear.approx, type="l", col=col.vec[j+1]) # compare to gain just from embryo selection 
+  
+  gain.gamete.linear.approx <- multi_trait_gain_gamete_mean(params$c.vec, Sigma.T, loss.params$theta, 'approx')
+  lines(params$c.vec, gain.gamete.linear.approx, type="l", col=col.vec[j+2]) # compare to gain just from gamete selection 
+  
+  if(save.figs)
+    dev.off()
 }
-n.algs <- length(params$alg.str)
-plot(params$c.vec, gain.linear$gain.mat[,1], xlab="C", ylab="Gain", type="p", col=col.vec[1],
-     ylim = c(min(0,min(gain.linear$gain.mat)), max(0, max(gain.linear$gain.mat)))) 
-for(j in 2:n.algs)
-  points(params$c.vec, gain.linear$gain.mat[,j], type="p", col=col.vec[j+1]) # compare to gain just form embryo selection 
-grid(NULL, NULL, lwd = 2)
-legend(0.8 * max(params$c.vec), 0.2*max(gain.linear$gain.mat),   lwd=c(2,2),  # use legend of previous figure 
-       c(params$alg.str[1], "chrom"), col=col.vec[c(1, 3:(n.algs+1))], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
-
-# Add asymptotic formula 
-
-lines(params$c.vec, gain.linear.approx, type="l", col=col.vec[j+1]) # compare to gain just form embryo selection 
-
-
-if(save.figs)
-  dev.off()
-
-
-
