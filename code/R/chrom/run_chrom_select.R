@@ -8,6 +8,7 @@ library(Rfast)
 setwd("C:\\Code\\Github\\EmbryoSelectionCalculator\\code\\R\\chrom") # Or
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
+source("chrom_select_plots.R")
 
 # (sum(sqrt(chr.lengths)) + sum(sqrt(chr.lengths[1:22]))) / sqrt(2*pi)
 C <- 10 # number of chromosomal copies
@@ -47,73 +48,89 @@ loss.params$eta <- 0 # negative L2 regularization
 loss.params$n.blocks <- 4
 
 
-sol.bb.mid <- optimize_C_branch_and_bound_divide_and_conquer(X, loss.C, loss.params)
-
-# Only if block size small enough
-sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-print(sol.bb.mid$opt.loss-sol.bb$opt.loss)
-#sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
-
-
-sol.quant <- optimize_C_quant(X, "quant", loss.params)
-
-# Example of choosing the index for each block
-c.vec = sample(C, M, replace=TRUE)
-C.mat = matrix(rexp(M*C), nrow=M, ncol=C)
-C.mat = C.mat / rowSums(C.mat)
-
-X.c = compute_X_c_vec(X, c.vec)
-X.c2 = compute_X_C_mat(X, C.mat)
-
-
-loss.C <- "stabilizing"
-bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
-bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
-
-
-loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
-g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
-g.b = grad_loss_PS(X, C.mat, "stabilizing", loss.params)
-
-H.d = hessian_loss_PS(X, C.mat, "disease", loss.params)
-H.b = hessian_loss_PS(X, C.mat, "stabilizing", loss.params)
+run.plots = TRUE
+old.runs = FALSE
+pareto.tests = FALSE
 
 
 
-# Try many times: 
-diff.vec <- rep(0, 100)
-for(i in 1:100)
+if(run.plots)
 {
-  X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
-  bal.exact <- optimize_C_stabilizing_exact(X, loss.C, loss.params)
-  bal.exact2 <- optimize_C_stabilizing_exact(X[,1:2,], loss.C, loss.params) # take subset of C. Loss should be higher
-  diff.vec[i] <- bal.exact$loss.mat - bal.exact2$loss.mat
-  #  bal.exact$loss.mat
-  #  bal.exact2$loss.mat
-  if(bal.exact2$loss.mat < bal.exact$loss.mat)
-    print("Error! loss got smaller!")
+  plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
 }
 
 
-bal.relax2 <- optimize_C_relax(X, bal.exact$C.mat, loss.C, loss.params)
-plot(bal.relax2$loss.vec)
+if(old.runs)
+{
+  sol.bb.mid <- optimize_C_branch_and_bound_divide_and_conquer(X, loss.C, loss.params)
+  
+  # Only if block size small enough
+  sol.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+  print(sol.bb.mid$opt.loss-sol.bb$opt.loss)
+  #sol.bb.lip <- optimize_C_branch_and_bound_lipschitz(X, loss.C, loss.params)
+  
+  
+  sol.quant <- optimize_C_quant(X, "quant", loss.params)
+  
+  # Example of choosing the index for each block
+  c.vec = sample(C, M, replace=TRUE)
+  C.mat = matrix(rexp(M*C), nrow=M, ncol=C)
+  C.mat = C.mat / rowSums(C.mat)
+  
+  X.c = compute_X_c_vec(X, c.vec)
+  X.c2 = compute_X_C_mat(X, C.mat)
+  
+  
+  loss.C <- "stabilizing"
+  bal.bb <- optimize_C_branch_and_bound(X, loss.C, loss.params)
+  bal.relax <- optimize_C_relax(X, c(), loss.C, loss.params)
+  
+  
+  loss_PS(compute_X_C_mat(X, C.mat), loss.C, loss.params)
+  g.d = grad_loss_PS(X, C.mat, "disease", loss.params)
+  g.b = grad_loss_PS(X, C.mat, "stabilizing", loss.params)
+  
+  H.d = hessian_loss_PS(X, C.mat, "disease", loss.params)
+  H.b = hessian_loss_PS(X, C.mat, "stabilizing", loss.params)
+  
+  
+  
+  # Try many times: 
+  diff.vec <- rep(0, 100)
+  for(i in 1:100)
+  {
+    X = simulate_PS_chrom_disease_risk(M, C, T, Sigma.T, Sigma.K, sigma.blocks[1:M], prev)
+    bal.exact <- optimize_C_stabilizing_exact(X, loss.C, loss.params)
+    bal.exact2 <- optimize_C_stabilizing_exact(X[,1:2,], loss.C, loss.params) # take subset of C. Loss should be higher
+    diff.vec[i] <- bal.exact$loss.mat - bal.exact2$loss.mat
+    #  bal.exact$loss.mat
+    #  bal.exact2$loss.mat
+    if(bal.exact2$loss.mat < bal.exact$loss.mat)
+      print("Error! loss got smaller!")
+  }
+  
+  
+  bal.relax2 <- optimize_C_relax(X, bal.exact$C.mat, loss.C, loss.params)
+  plot(bal.relax2$loss.vec)
+  
+  grad_loss_PS(X, bal.exact$C.mat, loss.C, loss.params)
+  
+  C.mat <- bal.exact$C.mat
+  #C.mat <- matrix(runif(M*C), nrow=M, ncol=C)
+  #C.mat <- C.mat / rowSums(C.mat)
+  X.c <- compute_X_C_mat(X, C.mat)
+  LOSS1 <- loss_PS(X.c, loss.C, loss.params)
+  C.mat.to.vec <- as.vector(t(C.mat))
+  A <- bal.exact$Big.A[1:(M*C),1:(M*C)]
+  LOSS2 <- 0.5 * t(C.mat.to.vec) %*% A %*% (C.mat.to.vec)
+  print(LOSS1)
+  print(LOSS2)
+  
+  
+  average.disease.loss = sum(loss.params$theta * loss.params$K)
+  print(paste("Optimal disease loss: ", sol$opt.loss, " Average disease loss: ", average.disease.loss))
+}
 
-grad_loss_PS(X, bal.exact$C.mat, loss.C, loss.params)
-
-C.mat <- bal.exact$C.mat
-#C.mat <- matrix(runif(M*C), nrow=M, ncol=C)
-#C.mat <- C.mat / rowSums(C.mat)
-X.c <- compute_X_C_mat(X, C.mat)
-LOSS1 <- loss_PS(X.c, loss.C, loss.params)
-C.mat.to.vec <- as.vector(t(C.mat))
-A <- bal.exact$Big.A[1:(M*C),1:(M*C)]
-LOSS2 <- 0.5 * t(C.mat.to.vec) %*% A %*% (C.mat.to.vec)
-print(LOSS1)
-print(LOSS2)
-
-
-average.disease.loss = sum(loss.params$theta * loss.params$K)
-print(paste("Optimal disease loss: ", sol$opt.loss, " Average disease loss: ", average.disease.loss))
 
 
 
@@ -122,9 +139,6 @@ print(paste("Optimal disease loss: ", sol$opt.loss, " Average disease loss: ", a
 
 
 
-
-
-pareto.tests = FALSE
 if(pareto.tests)
 {
   #po = 0
