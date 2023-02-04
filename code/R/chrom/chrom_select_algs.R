@@ -55,7 +55,6 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
   if(!("max.iters" %in% names(loss.params)))  
     loss.params$max.iters <- 10000 
   
-  
   loss.vec <- rep(0, loss.params$max.iters)
   loss.vec[1] <- loss_PS(compute_X_C_mat(X, C.init), loss.type, loss.params) - loss.params$eta * sum(C.init**2)
   delta.loss <- 999999
@@ -718,7 +717,7 @@ filter_solutions <- function(sol, loss.type, loss.params)
 
 
 ###############################################################
-# A closed-form solution for the case of stabilizing selection 
+# A closed-form solution for the relaxation version case of stabilizing selection 
 #
 # Input: 
 # X - tensor of polygenic scores 
@@ -728,11 +727,11 @@ filter_solutions <- function(sol, loss.type, loss.params)
 # Output: 
 # List with the following 
 # opt.X - optimal X 
-# opt.loss - 
+# opt.loss - loss of optimal X
 # opt.c - optimal value of the loss 
-# C.mat - 
+# C.mat - matrix of selector variables 
 # loss.mat -  
-# Big.A - 
+# Big.A - matrix of 
 # b - 
 ###############################################################
 optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
@@ -795,7 +794,6 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
 #  A.dirty <- -2 * loss.params$eta * eye(M*C)
 #  print(0.5 * t(c.stacked.better) %*% A.dirty %*% c.stacked.better)
   
-
   
   # NEW: Do quadratic programming including inequality constraints (not closed-form)
 #  if(quad.prog)
@@ -894,6 +892,7 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
     "quant" = optimize_C_quant(X, loss.type, loss.params),
     "closed_form" = optimize_C_stabilizing_exact(X, loss.type, loss.params),
     "relax" = optimize_C_relax(X, loss.params$C.init, loss.type, loss.params),
+    "SDR" = optimize_C_SDR(X, loss.params$C.init, loss.type, loss.params),
     "branch_and_bound" = optimize_C_branch_and_bound(X, loss.type, loss.params),
     "branch_and_bound_lipschitz" = optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params),
     "branch_and_bound_divide_and_conquer" = optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params)
@@ -991,6 +990,10 @@ compute_gain_sim <- function(params, loss.type, loss.params)
         }
         
         # Next compute average gain vs. random: 
+        print("dim: ")
+        print(dim(gain.tensor))
+        print(c(t, i.c, a))
+        print(sol$opt.loss)
         gain.tensor[t,i.c,a] <- sol$opt.loss
         #    if("loss.mat" %in% names(sol))
         #      gain.mat[t] <- sol$loss.mat

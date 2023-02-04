@@ -55,6 +55,7 @@ df <- 5 # For Wishart distribution
 
 h.ps <- 0.3  # variance explained by the polygenic score 
 
+params$c.vec <- 2:5
 params$max.C = max(params$c.vec)
 sigma.blocks = c(chr.lengths, chr.lengths) * h.ps  # allow up to 46 
 params$sigma.blocks = sigma.blocks
@@ -137,17 +138,17 @@ plot_one_sim_BB_num_vectors <- function(params, save.figs = TRUE)
 ###############################################################
 plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = TRUE, force.rerun = FALSE)
 {
-  time.iters <- 10 # 100
+  time.iters <- 5 # 100
   params$C = 2 # max(params$c.vec)
   
-  params.C.vec <- c(2,4,6)
+  params.C.vec <- c(2,4) # 6
   params$max.M <- 10 # 23
   num.m <- params$max.M - 1
   
   sim.res.file <- ''
   
   
-  if(force.rerun & !file.exists(sim.res.file))   # Run analysis (could be heavy)  
+  if(force.rerun | !file.exists(sim.res.file))   # Run analysis (could be heavy)  
   {
     dc.num.vecs <- bb.num.vecs <- bb.time.mat <- dc.time.mat <- vector("list", length(params.C.vec))
     for(k in 1:length(params.C.vec))
@@ -182,6 +183,7 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
     }  # end loop on iters
   } else # here load results of previous run
     load(sim.res.file)
+  print("Finished loops!! ")
   
   if(save.figs)
     jpeg(paste0(figs_dir, 'bb_runtime_average.jpg'))
@@ -198,6 +200,9 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
   lines(1:params$max.M, log10(params$C ** c(1:params$M)), type="l", col="black") # compare to gain just form embryo selection 
   axis(2, seq(0L,4L,1L), cex.axis=1.25, labels=parse(text=paste("10^", abs(seq(0, 4, 1)), sep="")))
   
+  print("Finished first fig!! ")
+  
+  
   #plot(2:params$max.M, bb.num.vecs, xlab="Chrom.", ylab="Num. Vectors", type="l", log='y', ylim = c(1, params$C**params$M), 
   #     col="red", main=paste0("Number of vectors considered "))
   #lines(1:params$M, sol.bb.lip$L.vec, type="l", col="blue") # compare to gain just form embryo selection 
@@ -213,6 +218,7 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
   ###############################################################
   # Figure 2.NEW.: Running time
   ###############################################################
+  print("Another plot!! ")
   
   if(plot.runtime)
   {
@@ -222,6 +228,9 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
       max.y <- max( max.y, max(colMeans(bb.time.mat[[k]]) + sqrt(colVars(bb.time.mat[[k]]))), 
                     max(colMeans(dc.time.mat[[k]]) + sqrt(colVars(dc.time.mat[[k]]))) )
     }  
+    
+    print("Another plot max.y!! ")
+    
     
     plot(1:params$max.M, log10(pmax(1, colMeans(bb.time.mat[[1]]))), ylim = c(-1, log10(max.y*1.05)), 
          xlab="M", ylab="Run. time (sec.)", cex=1.25) 

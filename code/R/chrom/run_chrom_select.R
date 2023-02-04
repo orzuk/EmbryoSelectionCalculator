@@ -54,10 +54,16 @@ pareto.tests = FALSE
 
 
 
-if(run.plots)
+if(run.plots)  # New: plots for paper: 
 {
+  plot_BB_num_vectors_errorbars(params, time.iters = 10, save.figs = TRUE, force.rerun = FALSE)
+    
   plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
 }
+
+
+
+
 
 
 if(old.runs)
