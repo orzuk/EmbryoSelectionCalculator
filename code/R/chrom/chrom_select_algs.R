@@ -6,6 +6,8 @@ library(pracma)
 library(tensor)
 library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/olpsR")
 library(quadprog)  # for stabilizing selection loss 
+library(CVXR)
+library(Rcsdp)  # For semidefinite programming
 
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
@@ -826,6 +828,63 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
 #  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
 #              Big.A=Big.A, b=b))
 }
+
+
+###############################################################
+# A closed-form solution for the relaxation version case of stabilizing selection 
+#
+# Input: 
+# X - tensor of polygenic scores 
+# loss.type - string signifying loss type
+# loss.params - parameters of the loss function
+#
+# Output: 
+# List with the following 
+# opt.X - optimal X 
+# opt.loss - loss of optimal X
+# opt.c - optimal value of the loss 
+# C.mat - matrix of selector variables 
+# loss.mat -  
+# Big.A - matrix of 
+# b - 
+###############################################################
+optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
+{
+  if(!("eta" %in% names(loss.params)))   # negative L2 regularizer
+    loss.params$eta <- 0 
+  
+  print("Start optimize stabilizing Semidefinite Relaxation")
+  M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
+
+  # Old stuff below: replace by SDR: 
+  A <- -2 * loss.params$eta * eye(M*C) # new: add regularization # matrix(0, nrow=M*C, ncol=M*C)
+  for(k in c(1:T))
+    A <- A + 2 * loss.params$theta[k] *  as.vector(t(X[,,k])) %*% t(as.vector(t(X[,,k])))
+  E <- matrix(0, nrow=M, ncol=M*C)
+  for(i in c(1:M))
+    E[i,((i-1)*C+1):(i*C)] <- 1
+  b <- c(rep(0, M*C), rep(1, M)) # free vector for linear system   
+  Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
+  
+
+  if(T+2*M >= (C+1)*M)  # unique solution 
+    v <- solve(Big.A, b) # Solve system
+  else  
+    v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse
+  C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
+  
+  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
+  
+
+  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
+  ret$C.mat <- C.mat
+  ret$loss.mat <- loss.mat
+  ret$Big.A <- Big.A
+  ret$b <- ret$b
+  return(ret)
+  
+}
+
 
 
 ###############################################################
