@@ -5,7 +5,12 @@ library(matrixcalc)
 library(matrixNormal)
 library(Rfast)
 #setwd("C:\\Users\\Or Zuk\\Dropbox\\EmbryoSelection\\Code\\R\\chrom") # Or
-setwd("C:\\Code\\Github\\EmbryoSelectionCalculator\\code\\R\\chrom") # Or
+
+root_dir = "C:/Code/GitHub/EmbryoSelectionCalculator/code/R/chrom" # Or. Change to your path
+figs_dir = paste0(root_dir, "/Figures/")
+sim_res_dir = paste(root_dir, "/sim_res/")
+
+setwd(root_dir) 
 source("chrom_select_funcs.R")
 source("chrom_select_algs.R")
 source("chrom_select_plots.R")
@@ -58,6 +63,23 @@ if(run.plots)  # New: plots for paper:
 {
   plot_BB_num_vectors_errorbars(params, time.iters = 10, save.figs = TRUE, force.rerun = FALSE)
     
+  
+  
+  params$c.vec <- 2:5
+  params$iters <- 5
+  loss.params$n.blocks = 4 
+  params$loss.type <- "disease"
+  params$M <- 8  # reduce to run fast !! 
+  plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
+  
+  
+  params$c.vec <- 2:10
+  params$iters <- 5
+  loss.params$n.blocks = 13
+  loss.params$eta <- 0.0
+  params$loss.type <- "stabilizing"
+  params$M <- 13  # reduce to run fast !! 
+  
   plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
 }
 

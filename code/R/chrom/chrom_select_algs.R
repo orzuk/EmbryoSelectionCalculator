@@ -863,31 +863,42 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   E <- matrix(0, nrow=M, ncol=M*C)
   for(i in c(1:M))
     E[i,((i-1)*C+1):(i*C)] <- 1
-  A.hom <- rbind( cbind(A, t(A %*% rep(1, M*C))), cbind(A %*% rep(1, M*C), 0) )
-  
+  print("Dims:")
+  print(dim(A))
+  print(dim( t(A %*% rep(1, M*C))     ))
+  A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
+  print("Did A.hom")
   b <- c(rep(1, M*C+1), rep(C+2, M)) # free vector for linear system   
 
   H <-  vector("list", length = M*C+M+1)  # list of pos-def matrices for the constraints 
-  H[[1]] <- matrix(0, nrow = M*C+1, ncol = M*C+1)
-  for(i in 1:(M*C))
+#  H[[1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
+#  H[[1]][[1]][M*C+1,M*C+1] <- 1
+  for(i in 1:(M*C+1))
   {
-    H[[i+1]] <- H[[1]]
-    H[[i+1]][i,i] = 1
+    H[[i]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
+    H[[i]][[1]][i,i] = 1
   }
   for(i in 1:M)
   {
-    H[[i+M+1]] <- H[[1]]
-    H[[i+M+1]][M*C+1,1:(M*C)] <- E[i,]
-    H[[i+M+1]][1:(M*C),M*C+1] <- t(E[i,])
+    H[[i+M*C+1]] <- H[[1]]
+    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- E[i,]
+    H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- t(E[i,])
   }
+  print("Did H")
+  
   K <- c()
   K$type = "s"  # positive semidefinite
-  SDR.ret <- csdp(list(A.hom), H, b, K, control=csdp.control())
+  K$size = M*C+1
+  SDR.ret <- csdp(list(A.hom), H, b, K) # , control=csdp.control())
+  print("Ran SDP")
   
-#  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
   
+  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
+  ret <- c()
+  ret$C.mat <- (sign(SDR.svd$u)+1)/2 # take first eigenvector 
+  ret$loss.mat <- loss_PS(compute_X_C_mat(X, ret$C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
   
-  return(SDR/.ret)  
+  return(ret)  
 
 #  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
 #  ret$C.mat <- C.mat

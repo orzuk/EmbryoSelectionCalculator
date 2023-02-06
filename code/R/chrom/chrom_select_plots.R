@@ -258,16 +258,20 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
 ###############################################################
 plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.rerun = FALSE)
 {
-  params$c.vec <- 2:5
-  params$iters <- 5
-  loss.params$n.blocks = 4 
-  loss.type <- "disease"
-  params$M <- 23  # reduce to run fast !! 
-  params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+  if(!("loss.type" %in% names(params)))
+    params$loss.type <- "disease" # default
+  if(params$loss.type == "disease")
+    params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+  if(params$loss.type == "stabilizing")
+    params$alg.str <- c("embryo", "closed_form", "SDR_closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+  legend.vec <- params$alg.str
+  for(i in 1:length(legend.vec))
+    legend.vec[i] <- strsplit(params$alg.str[i], "_")[[1]][1]
+  
   #params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer") # ) "branch_and_bound") # "exact" # "branch_and_bound"
   #params$alg.str <- c("embryo", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
   if(run.plots)
-    gain.res <- compute_gain_sim(params, loss.type, loss.params) # chromosomal selection
+    gain.res <- compute_gain_sim(params, params$loss.type, loss.params) # chromosomal selection
   #  for(i in 1:length(params$c.vec))
   #  {
   #    params$C <- params$c.vec[i]
@@ -279,13 +283,12 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   overall.plot.time <- difftime(Sys.time() , start.time, units="secs")
   print(paste0("Overall Running Time for Plots (sec.):", overall.plot.time))
   
-  
   # Plot: 
   if(save.figs)
   {
     # Save results to file: 
-    save(params, loss.type, loss.params, gain.res, overall.plot.time, file="disease_gain_chrom.Rdata")
-    jpeg(paste0(figs_dir, 'diseaes_gain_chrom.jpg'))
+    save(params, loss.type, loss.params, gain.res, overall.plot.time, file=paste0(params$loss.type, "_gain_chrom.Rdata"))
+    jpeg(paste0(figs_dir, params$loss.type, '_gain_chrom.jpg'))
   }
   n.algs <- length(params$alg.str)
   plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
@@ -294,10 +297,11 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   for(j in 2:n.algs)
     lines(params$c.vec, gain.res$gain.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
   grid(NULL, NULL, lwd = 2)
-  legend(0.8 * max(params$c.vec), 0.175*max(gain.res$gain.mat),   lwd=c(2,2), 
-         c( "embryo", "chrom", "relax"), col=col.vec[1:n.algs], cex=1.25, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+  legend(0.7 * max(params$c.vec), 0.275*max(gain.res$gain.mat),   lwd=c(2,2), 
+         legend.vec, col=col.vec[1:n.algs], cex=1.25, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
   axis(1, 2:5, cex.axis=1.25, labels=c(2:5))
   
+  print(legend.vec)
   if(save.figs)
     dev.off()
 } # end plot accuracy
