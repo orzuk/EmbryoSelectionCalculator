@@ -863,25 +863,38 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   E <- matrix(0, nrow=M, ncol=M*C)
   for(i in c(1:M))
     E[i,((i-1)*C+1):(i*C)] <- 1
-  b <- c(rep(0, M*C), rep(1, M)) # free vector for linear system   
-  Big.A <- rbind(cbind(A, t(E)), cbind(E, matrix(0, nrow=M, ncol=M)))
+  A.hom <- rbind( cbind(A, t(A %*% rep(1, M*C))), cbind(A %*% rep(1, M*C), 0) )
   
+  b <- c(rep(1, M*C+1), rep(C+2, M)) # free vector for linear system   
 
-  if(T+2*M >= (C+1)*M)  # unique solution 
-    v <- solve(Big.A, b) # Solve system
-  else  
-    v <- pinv(Big.A) %*% b  # infinite solutions. Use pseudo-inverse
-  C.mat <- matrix(v[1:(M*C)], nrow=M, ncol=C, byrow = TRUE)
+  H <-  vector("list", length = M*C+M+1)  # list of pos-def matrices for the constraints 
+  H[[1]] <- matrix(0, nrow = M*C+1, ncol = M*C+1)
+  for(i in 1:(M*C))
+  {
+    H[[i+1]] <- H[[1]]
+    H[[i+1]][i,i] = 1
+  }
+  for(i in 1:M)
+  {
+    H[[i+M+1]] <- H[[1]]
+    H[[i+M+1]][M*C+1,1:(M*C)] <- E[i,]
+    H[[i+M+1]][1:(M*C),M*C+1] <- t(E[i,])
+  }
+  K <- c()
+  K$type = "s"  # positive semidefinite
+  SDR.ret <- csdp(list(A.hom), H, b, K, control=csdp.control())
   
-  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
+#  loss.mat <- loss_PS(compute_X_C_mat(X, C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
   
+  
+  return(SDR/.ret)  
 
-  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
-  ret$C.mat <- C.mat
-  ret$loss.mat <- loss.mat
-  ret$Big.A <- Big.A
-  ret$b <- ret$b
-  return(ret)
+#  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
+#  ret$C.mat <- C.mat
+#  ret$loss.mat <- loss.mat
+#  ret$Big.A <- Big.A
+#  ret$b <- ret$b
+#  return(ret)
   
 }
 
@@ -952,12 +965,14 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
     "closed_form" = optimize_C_stabilizing_exact(X, loss.type, loss.params),
     "relax" = optimize_C_relax(X, loss.params$C.init, loss.type, loss.params),
     "SDR" = optimize_C_SDR(X, loss.params$C.init, loss.type, loss.params),
+    "SDR_closed_form" = optimize_C_stabilizing_SDR_exact(X, loss.type, loss.params),
     "branch_and_bound" = optimize_C_branch_and_bound(X, loss.type, loss.params),
     "branch_and_bound_lipschitz" = optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params),
     "branch_and_bound_divide_and_conquer" = optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params)
   )
-    
-#  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
+  ret$run.time <- difftime(Sys.time(), start.time, units = "secs")[[1]]  # add running time as output
+  return(ret)
+  #  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
 #    return(optimize_C_embryo(X, loss.type, loss.params))
 #  if(loss.type == "quant") # easy optimization for quantitative traits 
 #    return(optimize_C_quant(X, loss.type, loss.params))
@@ -972,7 +987,6 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
 #  if(alg.str == "branch_and_bound_divide_and_conquer")
 #    return(optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params))
   
-  return(list(alg.ouptut=ret,  run.time = difftime(Sys.time(), start.time, units = "secs")[[1]]))
 }  
 
 
@@ -1026,6 +1040,7 @@ compute_gain_sim <- function(params, loss.type, loss.params)
       for(a in 1:n.algs)
       {
         sol <- optimize_C(X[,1:c,], loss.type, loss.params, params$alg.str[a])
+        save("X", "c", "loss.type", "loss.params", "params", "sol", file="temp_bad_loss.Rdata")
         if(loss.params$do.checks)
         {
           sol2 <- optimize_C(X[,1:2,], loss.type, loss.params, params$alg.str)
@@ -1052,6 +1067,9 @@ compute_gain_sim <- function(params, loss.type, loss.params)
         print("dim: ")
         print(dim(gain.tensor))
         print(c(t, i.c, a))
+        print("Alg:")
+        print(params$alg.str[a])
+        print("opt loss:")
         print(sol$opt.loss)
         gain.tensor[t,i.c,a] <- sol$opt.loss
         #    if("loss.mat" %in% names(sol))
