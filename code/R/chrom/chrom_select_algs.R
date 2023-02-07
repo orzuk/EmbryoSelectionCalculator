@@ -868,7 +868,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   print(dim( t(A %*% rep(1, M*C))     ))
   A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
   print("Did A.hom")
-  b <- c(rep(1, M*C+1), rep(C+2, M)) # free vector for linear system   
+  b <- c(rep(1, M*C+1), rep(2-C, M)) # free vector for linear system   
 
   H <-  vector("list", length = M*C+M+1)  # list of pos-def matrices for the constraints 
 #  H[[1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
@@ -894,8 +894,16 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   
   
   SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
+#  ggplot(SDR.ret$X[[1]], aes(X, Y, fill= Z)) +     geom_tile()
+  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
+  plot(SDR.svd$d)
   ret <- c()
   ret$C.mat <- (sign(SDR.svd$u)+1)/2 # take first eigenvector 
+  ret$C.mat.one.inds <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
+  ret$C.mat <- matrix(0, nrow=M, ncol=C)
+  ret$C.mat[cbind(1:M, ret$C.mat.one.inds)] <- 1
+  # Specialized rounding: Take for each block of M the maximum value:
+  
   ret$loss.mat <- loss_PS(compute_X_C_mat(X, ret$C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
   
   return(ret)  
