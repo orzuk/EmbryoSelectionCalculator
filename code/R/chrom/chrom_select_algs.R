@@ -822,7 +822,11 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
   ret$loss.mat <- loss.mat
   ret$Big.A <- Big.A
   ret$b <- ret$b
-  return(ret)
+
+  print("Relax Loss:")
+  print(ret$loss.mat)
+  
+    return(ret)
   
     
 #  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
@@ -854,6 +858,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
     loss.params$eta <- 0 
   
   print("Start optimize stabilizing Semidefinite Relaxation")
+#  xxx = yyyy  + 1341234
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
 
   # Old stuff below: replace by SDR: 
@@ -880,9 +885,9 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   }
   for(i in 1:M)
   {
-    H[[i+M*C+1]] <- H[[1]]
-    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- E[i,]
-    H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- t(E[i,])
+    H[[i+M*C+1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlction
+    H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
   }
   print("Did H")
   
@@ -895,16 +900,21 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   
   SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
 #  ggplot(SDR.ret$X[[1]], aes(X, Y, fill= Z)) +     geom_tile()
-  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
-  plot(SDR.svd$d)
+##  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
+##  plot(SDR.svd$d)
   ret <- c()
   ret$C.mat <- (sign(SDR.svd$u)+1)/2 # take first eigenvector 
-  ret$C.mat.one.inds <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
+  ret$c.vec <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
   ret$C.mat <- matrix(0, nrow=M, ncol=C)
-  ret$C.mat[cbind(1:M, ret$C.mat.one.inds)] <- 1
+  ret$C.mat[cbind(1:M, ret$c.vec)] <- 1
   # Specialized rounding: Take for each block of M the maximum value:
   
   ret$loss.mat <- loss_PS(compute_X_C_mat(X, ret$C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
+  print("SDP Loss:")
+  print(ret$loss.mat)
+  
+  ret$opt.loss <- loss_PS(compute_X_c_vec(X, ret$c.vec), loss.type, loss.params)  # cost of the rounded solution 
+  ret$opt.X <- compute_X_c_vec(X, ret$c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
   return(ret)  
 
