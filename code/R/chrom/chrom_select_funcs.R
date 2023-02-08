@@ -163,7 +163,7 @@ loss_PS <- function(X.c, loss.type, loss.params)
 
 
 ###############################################################
-# The loss for vectors 
+# The loss for many vectors 
 # Input: 
 # X.c.mat - a matrix with multiple vectors of length C
 # loss.type - what loss to compute 

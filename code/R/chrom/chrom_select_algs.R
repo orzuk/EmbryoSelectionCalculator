@@ -102,7 +102,18 @@ optimize_C_relax <- function(X, C.init, loss.type, loss.params)
 }
 
 
+###############################################################
 # Helper function: convert real solution to integer solution
+# here: n = C^M
+# Input: 
+# X - a 3D tensor of block genetic scores
+# loss.type - type of loss function
+# loss.params - parameters determining the loss function
+# Output: 
+# opt.X - Resulting optimal X_c
+# opt.loss - loss of optimal solution
+# opt.c - binary solution in the simplex product
+###############################################################
 real_to_integer_solution <- function(X, C.mat, loss.type, loss.params)
 {
   M <- dim(X)[1]
@@ -114,7 +125,7 @@ real_to_integer_solution <- function(X, C.mat, loss.type, loss.params)
   # First project onto the simplex: 
   C.mat.in <- project_stochastic_matrix(C.mat)
   c.vecs <- matrix(0, nrow = M, ncol = loss.params$n.candidates)
-  for(i in 1:M)
+  for(i in 1:M)  # Sample according t weights 
     c.vecs[i,] <- sample(1:C, loss.params$n.candidates, replace = TRUE  , prob=C.mat.in[i,])
 
   i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
@@ -125,6 +136,55 @@ real_to_integer_solution <- function(X, C.mat, loss.type, loss.params)
   
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec))
 }  
+
+
+
+###############################################################
+# Helper function: convert SDP real solution to integer solution
+# here: n = C^M
+# Input: 
+# X - a 3D tensor of block genetic scores
+# loss.type - type of loss function
+# loss.params - parameters determining the loss function
+# Output: 
+# opt.X - Resulting optimal X_c
+# opt.loss - loss of optimal solution
+# opt.c - binary solution in the simplex product
+###############################################################
+SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, method = "svd")
+{
+  M <- dim(X)[1]
+  C <- dim(X)[2]
+  T <- dim(X)[3]
+  
+  
+  if(method == "svd")
+  {
+    SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
+    c.vec <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
+  }  
+  if(method == "randomization")
+  {
+    rand.iters <- 100
+    z = mvrnorm(n = rand.iters, mu = rep(0, dim(C.mat.pos.def)[1]), Sigma = C.mat.pos.def)
+    c.vecs <- matrix(0, nrow = iters, ncol = M)
+    for(i in 1:M)
+    {
+       c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
+    }
+    i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
+    c.vec <- c.vecs[i.min,]  # get best random vector
+  }
+  C.mat <- matrix(0, nrow=M, ncol=C)
+  C.mat[cbind(1:M, c.vec)] <- 1
+  
+
+  opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
+  opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
+  
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat))
+}  
+
 
 
 ###############################################################
@@ -886,7 +946,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   for(i in 1:M)
   {
     H[[i+M*C+1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
-    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlction
+    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlation
     H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
   }
   print("Did H")
@@ -897,24 +957,26 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   SDR.ret <- csdp(list(A.hom), H, b, K) # , control=csdp.control())
   print("Ran SDP")
   
-  
+  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "randomization")  # "svd"
+    
+    
   SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
 #  ggplot(SDR.ret$X[[1]], aes(X, Y, fill= Z)) +     geom_tile()
 ##  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
 ##  plot(SDR.svd$d)
-  ret <- c()
-  ret$C.mat <- (sign(SDR.svd$u)+1)/2 # take first eigenvector 
-  ret$c.vec <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
-  ret$C.mat <- matrix(0, nrow=M, ncol=C)
-  ret$C.mat[cbind(1:M, ret$c.vec)] <- 1
+###  ret <- c()
+#  ret$C.mat <- (sign(SDR.svd$u)+1)/2 # take first eigenvector 
+  ###   ret$c.vec <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
+  ### ret$C.mat <- matrix(0, nrow=M, ncol=C)
+  ### ret$C.mat[cbind(1:M, ret$c.vec)] <- 1
   # Specialized rounding: Take for each block of M the maximum value:
   
   ret$loss.mat <- loss_PS(compute_X_C_mat(X, ret$C.mat), loss.type, loss.params) #  c.p.v <- compute_X_C_mat(X, C.mat)
-  print("SDP Loss:")
-  print(ret$loss.mat)
+  ### print("SDP Loss:")
+  ### print(ret$loss.mat)
   
-  ret$opt.loss <- loss_PS(compute_X_c_vec(X, ret$c.vec), loss.type, loss.params)  # cost of the rounded solution 
-  ret$opt.X <- compute_X_c_vec(X, ret$c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
+  ### ret$opt.loss <- loss_PS(compute_X_c_vec(X, ret$c.vec), loss.type, loss.params)  # cost of the rounded solution 
+  ### ret$opt.X <- compute_X_c_vec(X, ret$c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
   return(ret)  
 
