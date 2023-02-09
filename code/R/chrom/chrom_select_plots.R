@@ -396,6 +396,26 @@ if(debug.code)
   compute_X_c_vec(X, c.rand[i,]) - X.c[i,]
   loss.dist <- loss_PS_mat(X.c.mat, loss.type, loss.params)
   hist(loss.dist, breaks=50, main=loss.str)
+  
+  
+  # Debug SDP:
+  # Find brute-force the optimal C
+  loss.vec <- rep(0, C**M)
+  ctr = 1
+  for(a in 1:C)
+    for(b in 1:C)
+    {
+      c.vec <- c(a,b)
+      loss.vec[ctr] <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)
+      ctr <- ctr + 1
+    }
+  opt.c.vec <- c(3,2)  
+  loss_PS(compute_X_c_vec(X, c(3,2)), loss.type, loss.params)
+  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "svd")  # randomization")  # "svd"
+#  > ret
+# (1,1)  
+  
+
 }
 #########################################################################
 # End debug 
@@ -446,3 +466,6 @@ plot_linear_asymptotic_vs_sim <- function(params, save.figs = TRUE)
   if(save.figs)
     dev.off()
 }
+
+
+

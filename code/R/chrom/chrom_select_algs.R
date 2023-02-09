@@ -918,7 +918,6 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
     loss.params$eta <- 0 
   
   print("Start optimize stabilizing Semidefinite Relaxation")
-#  xxx = yyyy  + 1341234
   M <- dim(X)[1];   C <- dim(X)[2];  T <- dim(X)[3]
 
   # Old stuff below: replace by SDR: 
@@ -933,11 +932,9 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   print(dim( t(A %*% rep(1, M*C))     ))
   A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
   print("Did A.hom")
-  b <- c(rep(1, M*C+1), rep(2-C, M)) # free vector for linear system   
+  b <- c(rep(1, M*C+1), rep(2-C, M), (M*(2-C)+1)**2  ) # free vector for linear system   
 
-  H <-  vector("list", length = M*C+M+1)  # list of pos-def matrices for the constraints 
-#  H[[1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
-#  H[[1]][[1]][M*C+1,M*C+1] <- 1
+  H <-  vector("list", length = M*C+M+2)  # list of pos-def matrices for the constraints 
   for(i in 1:(M*C+1))
   {
     H[[i]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
@@ -949,18 +946,41 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
     H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlation
     H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
   }
-  print("Did H")
+  H[[M*C+M+2]] <- list(matrix(1.0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+  
+    print("Did H")
   
   K <- c()
   K$type = "s"  # positive semidefinite
-  K$size = M*C+1
+  K$size = M*C+2
   SDR.ret <- csdp(list(A.hom), H, b, K) # , control=csdp.control())
+  SDR.ret <- csdp(list(A.hom), H[1:9], b[1:9], K) # , control=csdp.control())
   print("Ran SDP")
   
-  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "randomization")  # "svd"
-    
-    
+  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "svd")  # randomization")  # "svd"
   SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
+  heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
+            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+  heatmap.2(SDR.ret$X[[1]], scale = "none", col = bluered(100), dendrogram = "none",
+            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+  correct.c.vec <- c(0,0,1,0,1,0,1)*2-1
+  correct.C.mat <- correct.c.vec %*% t(correct.c.vec)
+  rank1.approx <- SDR.svd$u %*% t(SDR.svd$u)
+  heatmap.2(  correct.C.mat, scale = "none", col = bluered(100), dendrogram = "none",
+            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+
+  opt.C.relax.linear <- optimize_C_stabilizing_exact(X, loss.type, loss.params)
+  
+  writeLines(paste0("Opt SDR COST:", sum(diag(A.hom %*% SDR.ret$X[[1]])), 
+                    "\nOpt rank-1 approx COST:",   sum(diag(rank1.approx %*% SDR.ret$X[[1]])), 
+                    "\nOpt linear-relaxation COST:",   opt.C.relax.linear$opt.loss, 
+                    "\nOpt orig problem COST:",   sum(diag(correct.C.mat %*% SDR.ret$X[[1]])) ))
+  
+  # check trace of the solution: 
+  diag(SDR.ret$X[[1]])  # should be all ones 
+  sum(diag(H[[8]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
+  sum(diag(H[[9]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
+  
 #  ggplot(SDR.ret$X[[1]], aes(X, Y, fill= Z)) +     geom_tile()
 ##  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
 ##  plot(SDR.svd$d)
