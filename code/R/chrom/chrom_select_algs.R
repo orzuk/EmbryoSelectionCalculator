@@ -156,24 +156,39 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
+  print(dim(X))
   
+  rand.iters <- 200
+  ctr <- 0
   if(method == "svd")
-  {
-    SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
-    c.vecs <- matrix(0, nrow = M, ncol = 2)
-    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
-    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
-  }  
+    rand.iters <- 2
+  c.vecs <- matrix(0, nrow = rand.iters, ncol = M)
   if(method == "randomization")
   {
-    rand.iters <- 100
     z = mvrnorm(n = rand.iters, mu = rep(0, dim(C.mat.pos.def)[1]), Sigma = C.mat.pos.def)
-    c.vecs <- matrix(0, nrow = iters, ncol = M)
     for(i in 1:M)
-       c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
+      c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
+    ctr <- rand.iters-2
   }
-  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
-  c.vec <- c.vecs[,i.min]  # get best random vector
+  # Always use svd!! 
+  SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
+  c.vecs[ctr+1,] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
+  c.vecs[ctr+2,] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
+  
+#  {
+#    rand.iters <- 2
+#    SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
+#    c.vecs <- matrix(0, nrow = M, ncol = 2)
+#    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
+#    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
+#  }  
+  print(c.vecs)
+  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, (c.vecs)), loss.type, loss.params))
+  print("i.min:")
+  print(i.min)
+  c.vec <- c.vecs[i.min,]  # get best random vector
+  print("c.vec:")
+  print(c.vec)
   C.mat <- matrix(0, nrow=M, ncol=C)
   C.mat[cbind(1:M, c.vec)] <- 1
 
@@ -953,7 +968,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   K$size = M*C+1
   SDR.ret <- csdp(list(-A.hom), H, b, K) # , control=csdp.control()) # package maximizes, need to take minus
   print("Finished SDP, now get integer solution")
-  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "svd")  # randomization")  # "svd"
+  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
   print("Got integer solution")
   
 #  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation

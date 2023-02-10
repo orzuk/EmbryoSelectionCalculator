@@ -77,6 +77,7 @@ if(run.plots)  # New: plots for paper:
   params$iters <- 5
   loss.params$n.blocks = 13
   loss.params$eta <- 0.0
+  loss.params$sdr_to_int <- "randomization"  # "svd"
   params$loss.type <- "stabilizing"
   params$M <- 13  # reduce to run fast !! 
   
