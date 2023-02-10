@@ -160,9 +160,9 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   if(method == "svd")
   {
     SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
-    c.vecs <- matrix(0, nrow = 2, ncol = M)
-    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M), 1, FUN = which.max) # can be also min!!! 
-    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M), 1, FUN = which.min) # can be also min!!! 
+    c.vecs <- matrix(0, nrow = M, ncol = 2)
+    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
+    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
   }  
   if(method == "randomization")
   {
@@ -170,15 +170,12 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
     z = mvrnorm(n = rand.iters, mu = rep(0, dim(C.mat.pos.def)[1]), Sigma = C.mat.pos.def)
     c.vecs <- matrix(0, nrow = iters, ncol = M)
     for(i in 1:M)
-    {
        c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
-    }
   }
   i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
   c.vec <- c.vecs[,i.min]  # get best random vector
   C.mat <- matrix(0, nrow=M, ncol=C)
   C.mat[cbind(1:M, c.vec)] <- 1
-  
 
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
@@ -954,31 +951,43 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   K <- c()
   K$type = "s"  # positive semidefinite
   K$size = M*C+1
-  SDR.ret <- csdp(list(A.hom), H, b, K) # , control=csdp.control())
-
+  SDR.ret <- csdp(list(-A.hom), H, b, K) # , control=csdp.control()) # package maximizes, need to take minus
+  print("Finished SDP, now get integer solution")
   ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "svd")  # randomization")  # "svd"
-  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
-  heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
-            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
-  heatmap.2(SDR.ret$X[[1]], scale = "none", col = bluered(100), dendrogram = "none",
-            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
-  correct.c.vec <- c(0,0,1,0,1,0,1)*2-1
-  correct.C.mat <- correct.c.vec %*% t(correct.c.vec)
-  rank1.approx <- SDR.svd$u %*% t(SDR.svd$u) * ((M*C+1)/sum(SDR.svd$u**2))  # normalize
-  heatmap.2(  correct.C.mat, scale = "none", col = bluered(100), dendrogram = "none",
-            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+  print("Got integer solution")
+  
+#  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
+#  heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
+#            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+#  heatmap.2(SDR.ret$X[[1]], scale = "none", col = bluered(100), dendrogram = "none",
+#            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+#  correct.c.vec01 <- c(0,0,1,0,1,0,1)
+#    correct.c.vec <-correct.c.vec01*2-1
+#  correct.C.mat <- correct.c.vec %*% t(correct.c.vec)
+#  correct.C.mat01 <- (correct.c.vec01 %*% t(correct.c.vec01))[1:(M*C),1:(M*C)]
+#  rank1.approx <- SDR.svd$u %*% t(SDR.svd$u) * ((M*C+1)/sum(SDR.svd$u**2))  # normalize
+#  heatmap.2(  correct.C.mat, scale = "none", col = bluered(100), dendrogram = "none",
+#            trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+#
+#  opt.C.relax.linear <- optimize_C_stabilizing_exact(X, loss.type, loss.params)
+#  
+#  writeLines(paste0("Opt SDR COST:", 0.25 * (sum(diag(A.hom %*% SDR.ret$X[[1]])) + sum(A)), 
+#                    "\nOpt rank-1 approx COST:",    0.25 * (sum(diag(A.hom %*% rank1.approx)) + sum(A)), 
+#                    "\nOpt linear-relaxation COST:",   opt.C.relax.linear$opt.loss, 
+#                    "\nOpt orig problem COST:",  0.25 * ( sum(diag(A.hom %*%correct.C.mat)) + sum(A))  ))
+#  sum(diag(A %*% correct.C.mat01)) - sum(A)
 
-  opt.C.relax.linear <- optimize_C_stabilizing_exact(X, loss.type, loss.params)
-  
-  writeLines(paste0("Opt SDR COST:", sum(diag(A.hom %*% SDR.ret$X[[1]])), 
-                    "\nOpt rank-1 approx COST:",   sum(diag(A.hom %*% rank1.approx)), 
-                    "\nOpt linear-relaxation COST:",   opt.C.relax.linear$opt.loss, 
-                    "\nOpt orig problem COST:",   sum(diag(A.hom %*%correct.C.mat)) ))
-  
-  # check trace of the solution: 
-  diag(SDR.ret$X[[1]])  # should be all ones 
-  sum(diag(H[[8]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
-  sum(diag(H[[9]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
+# constraint.vec.ret <- rep(0, length(H))
+#  constraint.vec.correct <- rep(0, length(H))
+#  for(i in 1:length(H))
+#  {
+#    constraint.vec.ret[i] <-sum(diag(H[[i]][[1]] %*% rank1.approx ))
+#    constraint.vec.correct[i] <-sum(diag(H[[i]][[1]] %*% correct.C.mat ))
+#  }    
+#  # check trace of the solution: 
+#  diag(SDR.ret$X[[1]])  # should be all ones 
+#  sum(diag(H[[8]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
+#  sum(diag(H[[9]][[1]] %*% SDR.ret$X[[1]])) # should be C-2 = -1
   
 #  ggplot(SDR.ret$X[[1]], aes(X, Y, fill= Z)) +     geom_tile()
 ##  heatmap(SDR.ret$X[[1]], Rowv=NA, Colv=NA)
@@ -1174,13 +1183,13 @@ compute_gain_sim <- function(params, loss.type, loss.params)
         }
         
         # Next compute average gain vs. random: 
-        print("dim: ")
-        print(dim(gain.tensor))
-        print(c(t, i.c, a))
-        print("Alg:")
-        print(params$alg.str[a])
-        print("opt loss:")
-        print(sol$opt.loss)
+#        print("dim: ")
+#        print(dim(gain.tensor))
+#        print(c(t, i.c, a))
+#        print("Alg:")
+#        print(params$alg.str[a])
+#        print("opt loss:")
+#        print(sol$opt.loss)
         gain.tensor[t,i.c,a] <- sol$opt.loss
         #    if("loss.mat" %in% names(sol))
         #      gain.mat[t] <- sol$loss.mat
