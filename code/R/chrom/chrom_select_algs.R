@@ -157,11 +157,12 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   C <- dim(X)[2]
   T <- dim(X)[3]
   
-  
   if(method == "svd")
   {
     SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
-    c.vec <- apply(matrix(SDR.svd$u[-1], nrow=M), 1, FUN = which.max) 
+    c.vecs <- matrix(0, nrow = 2, ncol = M)
+    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M), 1, FUN = which.max) # can be also min!!! 
+    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M), 1, FUN = which.min) # can be also min!!! 
   }  
   if(method == "randomization")
   {
@@ -172,9 +173,9 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
     {
        c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
     }
-    i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
-    c.vec <- c.vecs[i.min,]  # get best random vector
   }
+  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, t(c.vecs)), loss.type, loss.params))
+  c.vec <- c.vecs[,i.min]  # get best random vector
   C.mat <- matrix(0, nrow=M, ncol=C)
   C.mat[cbind(1:M, c.vec)] <- 1
   
@@ -952,11 +953,9 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   
   K <- c()
   K$type = "s"  # positive semidefinite
-  K$size = M*C+2
+  K$size = M*C+1
   SDR.ret <- csdp(list(A.hom), H, b, K) # , control=csdp.control())
-  SDR.ret <- csdp(list(A.hom), H[1:9], b[1:9], K) # , control=csdp.control())
-  print("Ran SDP")
-  
+
   ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = "svd")  # randomization")  # "svd"
   SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
   heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
@@ -965,16 +964,16 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
             trace = "none", density.info = "none", Rowv=NA, Colv=NA)
   correct.c.vec <- c(0,0,1,0,1,0,1)*2-1
   correct.C.mat <- correct.c.vec %*% t(correct.c.vec)
-  rank1.approx <- SDR.svd$u %*% t(SDR.svd$u)
+  rank1.approx <- SDR.svd$u %*% t(SDR.svd$u) * ((M*C+1)/sum(SDR.svd$u**2))  # normalize
   heatmap.2(  correct.C.mat, scale = "none", col = bluered(100), dendrogram = "none",
             trace = "none", density.info = "none", Rowv=NA, Colv=NA)
 
   opt.C.relax.linear <- optimize_C_stabilizing_exact(X, loss.type, loss.params)
   
   writeLines(paste0("Opt SDR COST:", sum(diag(A.hom %*% SDR.ret$X[[1]])), 
-                    "\nOpt rank-1 approx COST:",   sum(diag(rank1.approx %*% SDR.ret$X[[1]])), 
+                    "\nOpt rank-1 approx COST:",   sum(diag(A.hom %*% rank1.approx)), 
                     "\nOpt linear-relaxation COST:",   opt.C.relax.linear$opt.loss, 
-                    "\nOpt orig problem COST:",   sum(diag(correct.C.mat %*% SDR.ret$X[[1]])) ))
+                    "\nOpt orig problem COST:",   sum(diag(A.hom %*%correct.C.mat)) ))
   
   # check trace of the solution: 
   diag(SDR.ret$X[[1]])  # should be all ones 
