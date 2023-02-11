@@ -8,6 +8,9 @@ library(olpsR) # for projection onto the simplex remotes::install_github("ngloe/
 library(quadprog)  # for stabilizing selection loss 
 library(CVXR)
 library(Rcsdp)  # For semidefinite programming
+#library(Rmosek)
+library(highfrequency)
+# example(mosek)
 
 
 Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions  
@@ -172,8 +175,11 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   }
   # Always use svd!! 
   SDR.svd <- svd(C.mat.pos.def, 1, 1) # take the best rank-1 approximation
-  c.vecs[ctr+1,] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
-  c.vecs[ctr+2,] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
+  if(length(SDR.svd$u) > M*C)
+    SDR.svd$u <- head(SDR.svd$u, -1)
+
+  c.vecs[ctr+1,] <- apply(matrix(SDR.svd$u, nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
+  c.vecs[ctr+2,] <- apply(matrix(SDR.svd$u, nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
   
 #  {
 #    rand.iters <- 2
@@ -937,50 +943,91 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   A <- -2 * loss.params$eta * eye(M*C) # new: add regularization # matrix(0, nrow=M*C, ncol=M*C)
   for(k in c(1:T))
     A <- A + 2 * loss.params$theta[k] *  as.vector(t(X[,,k])) %*% t(as.vector(t(X[,,k])))
-  E <- matrix(0, nrow=M, ncol=M*C)
-  for(i in c(1:M))
-    E[i,((i-1)*C+1):(i*C)] <- 1
-#  print("Dims:")
-#  print(dim(A))
-#  print(dim( t(A %*% rep(1, M*C))     ))
-  A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
-#  print("Did A.hom")
-  b <- c(rep(1, M*C+1), rep(2-C, M), rep(2*(C-2)**2, M*(M+1)/2) , (M*(2-C)+1)**2  ) # free vector for linear system   
+  
+  use.cvxr <- TRUE
+  if(use.cvxr)
+  {
+    # Alternative: use CVXR (tighter relaxation? contains inequalities!):
+    D <- Variable(M*C, M*C, PSD = TRUE)  # Force Positive Semi-Definite!!! 
+    obj <- matrix_trace(A %*% D)
 
-  H <-  vector("list", length = M*C+M+2 + M*(M+1)/2)  # list of pos-def matrices for the constraints 
-  for(i in 1:(M*C+1))
+    D.upper <- matrix(1, nrow = M*C, ncol = M*C)
+    for(i in 1:M)
+      D.upper[ ((i-1)*C+1):(i*C), ((i-1)*C+1):(i*C)  ] <- 0
+    diag(D.upper) <- 1
+    constr <- c(list(D >= 0), list(D <= D.upper), list(matrix_trace(D)==M), list(sum(D)==M*M))
+    for(i in 1:M)  # New: Set blocks 
+      for(j in 1:i)
+      {
+        cur.H <- (matrix(0, nrow = M*C, ncol = M*C)) # set as zeros 
+        cur.H[((i-1)*C+1):(i*C),((j-1)*C+1):(j*C)] <- 1.0  # set as ones 
+        cur.H <- cur.H + t(cur.H)  # symmetric!!
+        constr <- c(constr, list(matrix_trace(D %*%cur.H ) == 2))    
+      }
+    
+#    print("Now PROB CVXR")
+    
+    prob <- Problem(Minimize(obj), constr)
+#    print("Now Solve CVXR")
+    result <- solve(prob, solver = "SCS")
+  #  heatmap.2(    result$getValue(D), scale = "none", col = bluered(100), dendrogram = "none",
+    #                         trace = "none", density.info = "none", Rowv=NA, Colv=NA)
+    #  SDR.svd <- svd(result$getValue(D), 1, 1) # take the best rank-1 approximation
+    #  plot(SDR.svd$d)
+    
+    print("ISPOSDEF RESULT D: ")
+    print(isposdef( result$getValue(D)))
+    print("Result D eigenvalues:")
+    print(eig( result$getValue(D)))
+    
+    ret <- SDP_to_integer_solution(X, makePsd(result$getValue(D)), loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
+  } else # use cdspr
   {
-    H[[i]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
-    H[[i]][[1]][i,i] = 1
-  }
-  for(i in 1:M)
-  {
-    H[[i+M*C+1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
-    H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlation
-    H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
-  }
-  ctr <- M*C+2+M
-  for(i in 1:M)  # New: Set blocks 
-    for(j in 1:i)
+    E <- matrix(0, nrow=M, ncol=M*C)
+    for(i in c(1:M))
+      E[i,((i-1)*C+1):(i*C)] <- 1
+    #  print("Dims:")
+    #  print(dim(A))
+    #  print(dim( t(A %*% rep(1, M*C))     ))
+    A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
+    #  print("Did A.hom")
+    b <- c(rep(1, M*C+1), rep(2-C, M), rep(2*(C-2)**2, M*(M+1)/2) , (M*(2-C)+1)**2  ) # free vector for linear system   
+    
+    H <-  vector("list", length = M*C+M+2 + M*(M+1)/2)  # list of pos-def matrices for the constraints 
+    for(i in 1:(M*C+1))
     {
-      H[[ctr]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
-      H[[ctr]][[1]][((i-1)*C+1):(i*C),((j-1)*C+1):(j*C)] <- 1.0  # set as ones 
-      H[[ctr]][[1]] <- H[[ctr]][[1]] + t(H[[ctr]][[1]])  # symmetric!!
-      ctr <- ctr + 1
+      H[[i]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
+      H[[i]][[1]][i,i] = 1
     }
-  H[[M*C+M+2+M*(M+1)/2]] <- list(matrix(1.0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
-  
-#  print("Did H")
-  
-  K <- c()
-  K$type = "s"  # positive semidefinite
-  K$size = M*C+1 # M*C+M+2+M*M # M*C+1
-  SDR.ret <- csdp(list(-A.hom), H, b, K) # , control=csdp.control()) # package maximizes, need to take minus
-#  K$size = M*C+M+2 # M*C+1
-  SDR.ret <- csdp(list(-A.hom), H[1:(M*C+M+2)], b[1:(M*C+M+2)], K) # , control=csdp.control()) # package maximizes, need to take minus
-#  print("Finished SDP, now get integer solution")
-  ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
-#  print("Got integer solution")
+    for(i in 1:M)
+    {
+      H[[i+M*C+1]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+      H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlation
+      H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
+    }
+    ctr <- M*C+2+M
+    for(i in 1:M)  # New: Set blocks 
+      for(j in 1:i)
+      {
+        H[[ctr]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+        H[[ctr]][[1]][((i-1)*C+1):(i*C),((j-1)*C+1):(j*C)] <- 1.0  # set as ones 
+        H[[ctr]][[1]] <- H[[ctr]][[1]] + t(H[[ctr]][[1]])  # symmetric!!
+        ctr <- ctr + 1
+      }
+    H[[M*C+M+2+M*(M+1)/2]] <- list(matrix(1.0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+    
+    #  print("Did H")
+    
+    K <- c()
+    K$type = "s"  # positive semidefinite
+    K$size = M*C+1 # M*C+M+2+M*M # M*C+1
+    SDR.ret <- csdp(list(-A.hom), H, b, K) # , control=csdp.control()) # package maximizes, need to take minus
+    #  K$size = M*C+M+2 # M*C+1
+    SDR.ret <- csdp(list(-A.hom), H[1:(M*C+M+2)], b[1:(M*C+M+2)], K) # , control=csdp.control()) # package maximizes, need to take minus
+    #  print("Finished SDP, now get integer solution")
+    ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
+    #  print("Got integer solution")
+  } # else 
   
 #  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
 #  heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
@@ -1042,28 +1089,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
 #  return(ret)
   
   
-  # Alternative: use CVXR:
-  D <- Variable(M*C, M*C, PSD = TRUE)
-  obj <- -matrix_trace(A %*% D)
   
-  constr <- vector("list", M*C*M*C*2+1)  # add constraints
-  
-  constr <- c(list(D >= 0), list(D <= 1))
-  ctr=1
-  for(i in 1:M*C)
-    for(j in 1:M*C)
-    {
-      constr[[ctr]] <- (D[i,j] <= 1)    
-      ctr <- ctr + 1
-      constr[[ctr]] <- (D[i,j] >= 0)    
-      ctr <- ctr + 1
-    }
-  constr[[ctr]] <-(sum(D) == M*M)
-  ctr <- ctr + 1
-
-    
-  prob <- Problem(Maximize(obj), constr)
-  result <- solve(prob, solver = "SCS")
 }
 
 
