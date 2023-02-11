@@ -182,13 +182,13 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
 #    c.vecs[,1] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
 #    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
 #  }  
-  print(c.vecs)
+#  print(c.vecs)
   i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, (c.vecs)), loss.type, loss.params))
-  print("i.min:")
-  print(i.min)
+#  print("i.min:")
+#  print(i.min)
   c.vec <- c.vecs[i.min,]  # get best random vector
-  print("c.vec:")
-  print(c.vec)
+#  print("c.vec:")
+#  print(c.vec)
   C.mat <- matrix(0, nrow=M, ncol=C)
   C.mat[cbind(1:M, c.vec)] <- 1
 
@@ -940,14 +940,14 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   E <- matrix(0, nrow=M, ncol=M*C)
   for(i in c(1:M))
     E[i,((i-1)*C+1):(i*C)] <- 1
-  print("Dims:")
-  print(dim(A))
-  print(dim( t(A %*% rep(1, M*C))     ))
+#  print("Dims:")
+#  print(dim(A))
+#  print(dim( t(A %*% rep(1, M*C))     ))
   A.hom <- cbind( rbind(A, t(A %*% rep(1, M*C))), rbind(A %*% rep(1, M*C), 0) )
-  print("Did A.hom")
-  b <- c(rep(1, M*C+1), rep(2-C, M), (M*(2-C)+1)**2  ) # free vector for linear system   
+#  print("Did A.hom")
+  b <- c(rep(1, M*C+1), rep(2-C, M), rep(2*(C-2)**2, M*(M+1)/2) , (M*(2-C)+1)**2  ) # free vector for linear system   
 
-  H <-  vector("list", length = M*C+M+2)  # list of pos-def matrices for the constraints 
+  H <-  vector("list", length = M*C+M+2 + M*(M+1)/2)  # list of pos-def matrices for the constraints 
   for(i in 1:(M*C+1))
   {
     H[[i]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1))
@@ -959,17 +959,28 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
     H[[i+M*C+1]][[1]][M*C+1,1:(M*C)] <- 0.5*E[i,]  # factor 2 correlation
     H[[i+M*C+1]][[1]][1:(M*C),M*C+1] <- 0.5*t(E[i,])
   }
-  H[[M*C+M+2]] <- list(matrix(1.0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+  ctr <- M*C+2+M
+  for(i in 1:M)  # New: Set blocks 
+    for(j in 1:i)
+    {
+      H[[ctr]] <- list(matrix(0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
+      H[[ctr]][[1]][((i-1)*C+1):(i*C),((j-1)*C+1):(j*C)] <- 1.0  # set as ones 
+      H[[ctr]][[1]] <- H[[ctr]][[1]] + t(H[[ctr]][[1]])  # symmetric!!
+      ctr <- ctr + 1
+    }
+  H[[M*C+M+2+M*(M+1)/2]] <- list(matrix(1.0, nrow = M*C+1, ncol = M*C+1)) # set as zeros 
   
-    print("Did H")
+#  print("Did H")
   
   K <- c()
   K$type = "s"  # positive semidefinite
-  K$size = M*C+1
+  K$size = M*C+1 # M*C+M+2+M*M # M*C+1
   SDR.ret <- csdp(list(-A.hom), H, b, K) # , control=csdp.control()) # package maximizes, need to take minus
-  print("Finished SDP, now get integer solution")
+#  K$size = M*C+M+2 # M*C+1
+  SDR.ret <- csdp(list(-A.hom), H[1:(M*C+M+2)], b[1:(M*C+M+2)], K) # , control=csdp.control()) # package maximizes, need to take minus
+#  print("Finished SDP, now get integer solution")
   ret <- SDP_to_integer_solution(X, SDR.ret$X[[1]], loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
-  print("Got integer solution")
+#  print("Got integer solution")
   
 #  SDR.svd <- svd(SDR.ret$X[[1]], 1, 1) # take the best rank-1 approximation
 #  heatmap.2(A.hom, scale = "none", col = bluered(100), dendrogram = "none",
@@ -1022,7 +1033,7 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   ### ret$opt.X <- compute_X_c_vec(X, ret$c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
   return(ret)  
-
+  
 #  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
 #  ret$C.mat <- C.mat
 #  ret$loss.mat <- loss.mat
@@ -1030,6 +1041,29 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
 #  ret$b <- ret$b
 #  return(ret)
   
+  
+  # Alternative: use CVXR:
+  D <- Variable(M*C, M*C, PSD = TRUE)
+  obj <- -matrix_trace(A %*% D)
+  
+  constr <- vector("list", M*C*M*C*2+1)  # add constraints
+  
+  constr <- c(list(D >= 0), list(D <= 1))
+  ctr=1
+  for(i in 1:M*C)
+    for(j in 1:M*C)
+    {
+      constr[[ctr]] <- (D[i,j] <= 1)    
+      ctr <- ctr + 1
+      constr[[ctr]] <- (D[i,j] >= 0)    
+      ctr <- ctr + 1
+    }
+  constr[[ctr]] <-(sum(D) == M*M)
+  ctr <- ctr + 1
+
+    
+  prob <- Problem(Maximize(obj), constr)
+  result <- solve(prob, solver = "SCS")
 }
 
 
