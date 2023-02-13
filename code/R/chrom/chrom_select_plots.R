@@ -261,9 +261,9 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   if(!("loss.type" %in% names(params)))
     params$loss.type <- "disease" # default
   if(params$loss.type == "disease")
-    params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+    params$alg.str <- c("embryo", "branch_and_bound_divide_and_conquer", "relax", "naive_block_by_block") # ) "branch_and_bound") # "exact" # "branch_and_bound"
   if(params$loss.type == "stabilizing")
-    params$alg.str <- c("embryo", "closed_form", "SDR_closed_form") # ) "branch_and_bound") # "exact" # "branch_and_bound"
+    params$alg.str <- c("embryo", "closed_form", "SDR_closed_form", "naive_block_by_block") # ) "branch_and_bound") # "exact" # "branch_and_bound"
   legend.vec <- params$alg.str
   for(i in 1:length(legend.vec))
     legend.vec[i] <- strsplit(params$alg.str[i], "_")[[1]][1]

@@ -17,6 +17,16 @@ Rcpp::sourceCpp("cpp/chrom_funcs.cpp")  # fast functions
 source('chrom_select_funcs.R')
 
 
+# A simple naive algorithm: optimize each block separately
+optimize_C_naive_block_by_block <- function(X, loss.type, loss.params)
+{
+  c.vec <- rep(0, M)
+  for(i in 1:M)
+    c.vec[i] <- which.min(loss_PS_mat(X[,,i], loss.type, loss.params))
+  
+  return(c.vec)  # return choice per block 
+}
+
 
 ###############################################################
 # Optimize the selection of chromosomes:
@@ -1146,7 +1156,7 @@ optimize_C_embryo <- function(X, loss.type, loss.params)
 # Output: 
 # Whatever the algorithm called to returns
 # opt.loss - 
-# .c.opt - optimal value of the loss 
+# c.opt - optimal value of the loss 
 ###############################################################
 optimize_C <- function(X, loss.type, loss.params, alg.str)
 {
@@ -1156,6 +1166,7 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
   ret = switch(alg.str,
     "embryo" = optimize_C_embryo(X, loss.type, loss.params), 
     "quant" = optimize_C_quant(X, loss.type, loss.params),
+    "naive_block_by_block" = optimize_C_naive_block_by_block(X, loss.type, loss.params), 
     "closed_form" = optimize_C_stabilizing_exact(X, loss.type, loss.params),
     "relax" = optimize_C_relax(X, loss.params$C.init, loss.type, loss.params),
     "SDR" = optimize_C_SDR(X, loss.params$C.init, loss.type, loss.params),
