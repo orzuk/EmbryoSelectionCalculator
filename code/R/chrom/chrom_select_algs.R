@@ -20,11 +20,28 @@ source('chrom_select_funcs.R')
 # A simple naive algorithm: optimize each block separately
 optimize_C_naive_block_by_block <- function(X, loss.type, loss.params)
 {
+  M <- dim(X)[1]
+  print("dim x:")
+  print(dim(X))
   c.vec <- rep(0, M)
   for(i in 1:M)
-    c.vec[i] <- which.min(loss_PS_mat(X[,,i], loss.type, loss.params))
+  {
+    print(paste("i", i, " mat:"))
+    print(X[i,,])
+    print("loss:")
+    print(loss_PS_mat(X[i,,], loss.type, loss.params))
+    c.vec[i] <- which.min(loss_PS_mat(X[i,,], loss.type, loss.params))
+  }
   
-  return(c.vec)  # return choice per block 
+  opt.X <- compute_X_c_vec(X, c.vec)
+  opt.loss <- loss_PS(opt.X, loss.type, loss.params)
+  
+  print("optx : ")
+  print(opt.X)
+  print("opt loss:")
+  print(opt.loss)
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec)) # return identity of optimal embryo 
+  
 }
 
 
