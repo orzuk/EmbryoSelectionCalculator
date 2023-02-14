@@ -79,7 +79,7 @@ if(run.plots)  # New: plots for paper:
   loss.params$eta <- 0.0
   loss.params$sdr_to_int <- "randomization" # randomization"  # "svd"
   params$loss.type <- "stabilizing"
-  params$M <- 5  # reduce to run fast !! 
+  params$M <- 23  # reduce to run fast !! 
   
   plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
 }

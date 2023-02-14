@@ -304,6 +304,9 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   print(legend.vec)
   if(save.figs)
     dev.off()
+  
+  # save also running times: 
+  
 } # end plot accuracy
 ###############################################################
 
@@ -347,6 +350,10 @@ if(run.2c)
   #       c(params$alg.str[1], "relax"), col=col.vec[c(1, 3:(n.algs+1))], cex=0.75, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
   if(save.figs)
     dev.off()
+  
+  
+  # New: another plot? save table with running time 
+  save("gain.stab", "params", "loss.params", file="temp_stabilizing_results")
 }
 
 #########################################################################

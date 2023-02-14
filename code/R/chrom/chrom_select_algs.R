@@ -21,25 +21,25 @@ source('chrom_select_funcs.R')
 optimize_C_naive_block_by_block <- function(X, loss.type, loss.params)
 {
   M <- dim(X)[1]
-  print("dim x:")
-  print(dim(X))
+#  print("dim x:")
+#  print(dim(X))
   c.vec <- rep(0, M)
   for(i in 1:M)
   {
-    print(paste("i", i, " mat:"))
-    print(X[i,,])
-    print("loss:")
-    print(loss_PS_mat(X[i,,], loss.type, loss.params))
+#    print(paste("i", i, " mat:"))
+#    print(X[i,,])
+#    print("loss:")
+#    print(loss_PS_mat(X[i,,], loss.type, loss.params))
     c.vec[i] <- which.min(loss_PS_mat(X[i,,], loss.type, loss.params))
   }
   
   opt.X <- compute_X_c_vec(X, c.vec)
   opt.loss <- loss_PS(opt.X, loss.type, loss.params)
   
-  print("optx : ")
-  print(opt.X)
-  print("opt loss:")
-  print(opt.loss)
+#  print("optx : ")
+#  print(opt.X)
+#  print("opt loss:")
+#  print(opt.loss)
   return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec)) # return identity of optimal embryo 
   
 }
@@ -1237,6 +1237,7 @@ compute_gain_sim <- function(params, loss.type, loss.params)
   gain.tensor <- array(0, dim=c(params$iters, n.c, n.algs))
   rand.mat <- matrix(rep(0, params$iters*n.c), nrow=params$iters)  # a matrix (one column for each c value) 
   runs.tensor <- vector("list", length = params$iters)
+  runtime.mat <- matrix(rep(0, n.c*n.algs), nrow=n.c)  # a matrix storing the run time (one column for each c value) 
   
   for (t in 1:params$iters)
   {
@@ -1261,7 +1262,9 @@ compute_gain_sim <- function(params, loss.type, loss.params)
       rand.mat[t,i.c] <- loss_PS(compute_X_c_vec(X[,1:c,], rep(1, params$M)), loss.type, loss.params)
       for(a in 1:n.algs)
       {
+        start.time <- Sys.time()
         sol <- optimize_C(X[,1:c,], loss.type, loss.params, params$alg.str[a])
+        runtime.mat[i.c, a] <- runtime.mat[i.c, a] + difftime(Sys.time() , start.time, units="secs") 
         save("X", "c", "loss.type", "loss.params", "params", "sol", file="temp_bad_loss.Rdata")
         if(loss.params$do.checks)
         {
@@ -1301,10 +1304,10 @@ compute_gain_sim <- function(params, loss.type, loss.params)
       } # loop on algorithm 
     } # loop on C 
   } # loop on iters
-
+  runtime.mat = runtime.mat / params$iters
   for(a in 1:n.algs)
     gain.mat[,a] <- t(colMeans(rand.mat) - colMeans(gain.tensor[,,a])) # compute mean random loss minus optimal loss.
-  return(list(gain.mat=gain.mat, gain.tensor=gain.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor)) # Need to reduce the mean gain without selection 
+  return(list(gain.mat=gain.mat, gain.tensor=gain.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor, runtime.mat=runtime.mat)) # Need to reduce the mean gain without selection 
 }
 
 
