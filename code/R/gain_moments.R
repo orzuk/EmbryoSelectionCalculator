@@ -1,12 +1,14 @@
 # Compute first two moments of gain (for quantitative traits)
 # n - # of embryos
-# h2ps - heritability explained by the polygenic score (We assumve Var(Z)=1. If not, then this should be: h2ps*Var(Z))
+# h2ps - heritability explained by the polygenic score (We assume Var(Z)=1. If not, then this should be: h2ps*Var(Z))
 # method.str - approx or exact
 # subtract.mean - subtract mean of x_i. If zero, we compute moments of the top score
 # sib.flag - include correlations between siblings 
 #
 gain_moments <- function(n, h2ps=1, method.str, subtract.mean=1, sib.flag=1)
 {
+  if(!exists("method.str"))
+    method.str <- 'approx'
   switch (method.str,
           'approx'={
             E.G = 0.5^sib.flag * (qnorm(1-1/n) - digamma(1) / (n * dnorm( qnorm(1/n))))        
@@ -40,13 +42,27 @@ gauss_poly <- function(t, n)
 
 # Mean gap between selected embryo (top PS) and best embryo (top phenotype z)
 # n - # of embryos
-# Sigma - variance-covariance matrix of traits
+# Sigma.T - variance-covariance matrix of traits
 # w - weight vector for each trait
 # method.str - approx or exact
 #
-multi_trait_gain_mean <- function(n, Sigma, w, method.str)
+multi_trait_gain_mean <- function(n, Sigma.T, w, method.str)
 {	
-  return ( gain_moments(n, t(w) %*% Sigma %*% w / 2, method.str)$E.G )
+  if(!exists("method.str"))
+    method.str <- 'approx'
+  return ( gain_moments(n, t(w) %*% Sigma.T %*% w / 2, method.str)$E.G )
 }
 
 
+# Mean gap between embryo from selected gametes (top PS) and random embryos (top phenotype z)
+# n - # of embryos
+# Sigma.T - variance-covariance matrix of traits
+# w - weight vector for each trait
+# method.str - approx or exact
+#
+multi_trait_gamete_gain_mean <- function(n, Sigma.T, w, method.str)
+{	
+  if(!exists("method.str"))
+    method.str <- 'approx'
+  return ( gain_moments(n, t(w) %*% Sigma.T %*% w / 2, method.str)$E.G )  # Change formula here 
+}
