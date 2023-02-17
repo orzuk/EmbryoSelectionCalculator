@@ -186,7 +186,8 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   M <- dim(X)[1]
   C <- dim(X)[2]
   T <- dim(X)[3]
-  print(dim(X))
+  epsilon = 10 ^ (-5) 
+  certificate = eig(C.mat.pos.def)[2] < epsilon
   
   rand.iters <- 200
   ctr <- 0
@@ -196,7 +197,7 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   if(method == "randomization")
   {
     z = mvrnorm(n = rand.iters, mu = rep(0, dim(C.mat.pos.def)[1]), Sigma = C.mat.pos.def)
-    for(i in 1:M)
+    for(i in 1:M)  # what if we take minimum too? 
       c.vecs[,i] <- apply(z[,((i-1)*C+1):(i*C) ], 1, FUN = which.max)
     ctr <- rand.iters-2
   }
@@ -206,7 +207,7 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
     SDR.svd$u <- head(SDR.svd$u, -1)
 
   c.vecs[ctr+1,] <- apply(matrix(SDR.svd$u, nrow=M, byrow=TRUE), 1, FUN = which.max) # can be also min!!! 
-  c.vecs[ctr+2,] <- apply(matrix(SDR.svd$u, nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
+  c.vecs[ctr+2,] <- apply(matrix(SDR.svd$u, nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also max!!! 
   
 #  {
 #    rand.iters <- 2
@@ -216,7 +217,7 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
 #    c.vecs[,2] <- apply(matrix(head(SDR.svd$u, -1), nrow=M, byrow=TRUE), 1, FUN = which.min) # can be also min!!! 
 #  }  
 #  print(c.vecs)
-  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, (c.vecs)), loss.type, loss.params))
+  i.min <- which.min(loss_PS_mat(compute_X_c_vecs(X, (c.vecs)), loss.type, loss.params)) # minimize loss 
 #  print("i.min:")
 #  print(i.min)
   c.vec <- c.vecs[i.min,]  # get best random vector
@@ -228,7 +229,7 @@ SDP_to_integer_solution <- function(X, C.mat.pos.def, loss.type, loss.params, me
   opt.loss <- loss_PS(compute_X_c_vec(X, c.vec), loss.type, loss.params)  # cost of the rounded solution 
   opt.X <- compute_X_c_vec(X, c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
-  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat))
+  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, certificate = certificate))
 }  
 
 
@@ -929,10 +930,10 @@ optimize_C_stabilizing_exact <- function(X, loss.type, loss.params)
   ret$Big.A <- Big.A
   ret$b <- ret$b
 
-  print("Relax Loss:")
-  print(ret$loss.mat)
+#  print("Relax Loss:")
+#  print(ret$loss.mat)
   
-    return(ret)
+  return(ret)
   
     
 #  return(list(opt.X=opt.X, opt.loss=opt.loss, opt.c=c.vec, C.mat=C.mat, loss.mat=loss.mat, 
@@ -993,7 +994,6 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
       }
     
 #    print("Now PROB CVXR")
-    
     prob <- Problem(Minimize(obj), constr)
 #    print("Now Solve CVXR")
     result <- solve(prob, solver = "SCS")
@@ -1002,10 +1002,10 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
     #  SDR.svd <- svd(result$getValue(D), 1, 1) # take the best rank-1 approximation
     #  plot(SDR.svd$d)
     
-    print("ISPOSDEF RESULT D: ")
-    print(isposdef( result$getValue(D)))
-    print("Result D eigenvalues:")
-    print(eig( result$getValue(D)))
+#    print("ISPOSDEF RESULT D: ")
+#    print(isposdef( result$getValue(D)))
+#    print("Result D eigenvalues:")
+#    print(eig( result$getValue(D)))
     
     ret <- SDP_to_integer_solution(X, makePsd(result$getValue(D)), loss.type, loss.params, method = loss.params$sdr_to_int)  # randomization")  # "svd"
   } else # use cdspr
@@ -1107,16 +1107,6 @@ optimize_C_stabilizing_SDR_exact <- function(X, loss.type, loss.params)
   ### ret$opt.X <- compute_X_c_vec(X, ret$c.vec) #  opt.X <- compute_X_C_mat(X, C.cur)
   
   return(ret)  
-  
-#  ret <- real_to_integer_solution(X, C.mat, loss.type, loss.params)
-#  ret$C.mat <- C.mat
-#  ret$loss.mat <- loss.mat
-#  ret$Big.A <- Big.A
-#  ret$b <- ret$b
-#  return(ret)
-  
-  
-  
 }
 
 
@@ -1192,6 +1182,10 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
     "branch_and_bound_lipschitz" = optimize_C_branch_and_bound_lipschitz(X, loss.type, loss.params),
     "branch_and_bound_divide_and_conquer" = optimize_C_branch_and_bound_divide_and_conquer(X, loss.type, loss.params)
   )
+  if(alg.str %in% c("embryo", "quant", "branch_and_bound",  "branch_and_bound_lipschitz", "branch_and_bound_divide_and_conquer" ))
+    ret$certificate <- TRUE # optimal solution
+  if(alg.str %in% c("relax", "closed_form", "naive_block_by_block"))  
+    ret$certificate <- FALSE # heuristic
   ret$run.time <- difftime(Sys.time(), start.time, units = "secs")[[1]]  # add running time as output
   return(ret)
   #  if(alg.str == "embryo") # take best embryo (no separation to chromosomes)  
@@ -1223,7 +1217,7 @@ optimize_C <- function(X, loss.type, loss.params, alg.str)
 # Output: 
 # A list with the following items: 
 # - rand.mat - matrix with values for random selection
-# - gain.tensor - a 3rd-order table with the gain for each simulation
+# - loss.tensor - a 3rd-order table with the gain for each simulation
 # - gain.mat - matrix of differences (algs * C)
 ###############################################################
 compute_gain_sim <- function(params, loss.type, loss.params)
@@ -1234,14 +1228,16 @@ compute_gain_sim <- function(params, loss.type, loss.params)
   n.algs <- length(params$alg.str)
   n.c <- length(params$c.vec)
   gain.mat <- matrix(rep(0, n.c*n.algs), nrow=n.c)
-  gain.tensor <- array(0, dim=c(params$iters, n.c, n.algs))
+  loss.mat <- matrix(rep(0, n.c*n.algs), nrow=n.c)
+  loss.tensor <- array(0, dim=c(params$iters, n.c, n.algs))
   rand.mat <- matrix(rep(0, params$iters*n.c), nrow=params$iters)  # a matrix (one column for each c value) 
   runs.tensor <- vector("list", length = params$iters)
   runtime.mat <- matrix(rep(0, n.c*n.algs), nrow=n.c)  # a matrix storing the run time (one column for each c value) 
+  certificate.mat <- matrix(rep(0, n.c*n.algs), nrow=n.c)  # a matrix storing the run time (one column for each c value) 
   
   for (t in 1:params$iters)
   {
-    print(paste0("Compute gain, iter=", t, " out of ", params$iters))
+
     runs.tensor[[t]] = vector("list", length = n.c)
     # New: Set Covariance matrices inside function for each iteration ! 
     Sigma <- 0.5*diag(params$T) + matrix(0.5, nrow=params$T, ncol=params$T)   # Fixed trait-correlations matrix 
@@ -1253,50 +1249,31 @@ compute_gain_sim <- function(params, loss.type, loss.params)
 #    print(paste0(params$alg.str, ": Iter=", t, ", Dim: (M, C, T)=", params$M, " ", params$max.C, " ", params$T))
     X = simulate_PS_chrom_disease_risk(params$M, params$max.C, params$T, Sigma.T, Sigma.K, params$sigma.blocks, rep(0.5, k))
 
+
     # New: loop on all methods (Use same input X to reduce variance) 
     for(i.c in 1:n.c)  # loop on C, take partial data     
     {
+      print(paste0("Compute gain, iter=", t, " out of ", params$iters, "; M=", dim(X)[1], " C=", params$c.vec[i.c], " T=", dim(X)[3]))
       runs.tensor[[t]][[i.c]] = vector("list", length = n.algs)
       c <- params$c.vec[i.c]
       # Compute also score without selection: 
       rand.mat[t,i.c] <- loss_PS(compute_X_c_vec(X[,1:c,], rep(1, params$M)), loss.type, loss.params)
       for(a in 1:n.algs)
       {
-        start.time <- Sys.time()
         sol <- optimize_C(X[,1:c,], loss.type, loss.params, params$alg.str[a])
-        runtime.mat[i.c, a] <- runtime.mat[i.c, a] + difftime(Sys.time() , start.time, units="secs") 
-        save("X", "c", "loss.type", "loss.params", "params", "sol", file="temp_bad_loss.Rdata")
-        if(loss.params$do.checks)
-        {
-          sol2 <- optimize_C(X[,1:2,], loss.type, loss.params, params$alg.str)
-          runs.tensor[[t]][[i.c]][[a]] <- sol2
-          if(sol$opt.loss > sol2$opt.loss)
-            print("Error! Adding C increased error!")
-          sol.e <- optimize_C(X, loss.type, loss.params, "embryo")
-          if(sol$opt.loss > sol.e$opt.loss)
-            print("Error! embryo selection has lower loss!")
-          
-          if(params$alg.str[a] != "embryo")
-          {
-            sol.bb <- optimize_C_branch_and_bound(X, loss.type, loss.params)
-            if(abs(sol$opt.loss - sol.bb$opt.loss) > 0.000000001)
-              print("Error! bb has different loss!")
-            if(sol$opt.c != sol.bb$opt.c)
-              print("Error! bb has different c!")
-            if(max(abs(sol$opt.X - sol.bb$opt.X)) > 0.000000001)
-              print("Error! bb has different X!")
-          }
-        }
+        runtime.mat[i.c, a] <- runtime.mat[i.c, a] + sol$run.time
+        certificate.mat[i.c, a] <- certificate.mat[i.c, a] + sol$certificate  # works only for SDP 
         
+        save("X", "c", "loss.type", "loss.params", "params", "sol", file="temp_bad_loss.Rdata")
         # Next compute average gain vs. random: 
 #        print("dim: ")
-#        print(dim(gain.tensor))
+#        print(dim(loss.tensor))
 #        print(c(t, i.c, a))
 #        print("Alg:")
 #        print(params$alg.str[a])
 #        print("opt loss:")
 #        print(sol$opt.loss)
-        gain.tensor[t,i.c,a] <- sol$opt.loss
+        loss.tensor[t,i.c,a] <- sol$opt.loss
         #    if("loss.mat" %in% names(sol))
         #      gain.mat[t] <- sol$loss.mat
         #    else
@@ -1306,8 +1283,12 @@ compute_gain_sim <- function(params, loss.type, loss.params)
   } # loop on iters
   runtime.mat = runtime.mat / params$iters
   for(a in 1:n.algs)
-    gain.mat[,a] <- t(colMeans(rand.mat) - colMeans(gain.tensor[,,a])) # compute mean random loss minus optimal loss.
-  return(list(gain.mat=gain.mat, gain.tensor=gain.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor, runtime.mat=runtime.mat)) # Need to reduce the mean gain without selection 
+  {
+    loss.mat[,a] <- colMeans(loss.tensor[,,a]) # average loss 
+    gain.mat[,a] <- t(colMeans(rand.mat) - colMeans(loss.tensor[,,a])) # compute mean random loss minus optimal loss.
+  }
+  return(list(gain.mat=gain.mat, loss.mat=loss.mat, loss.tensor=loss.tensor, rand.mat=rand.mat, runs.tensor=runs.tensor, 
+              runtime.mat=runtime.mat, certificate.mat=certificate.mat)) # Need to reduce the mean gain without selection 
 }
 
 

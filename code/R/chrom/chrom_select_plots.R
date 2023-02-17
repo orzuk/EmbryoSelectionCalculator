@@ -256,7 +256,7 @@ plot_BB_num_vectors_errorbars <- function(params, time.iters = 100, save.figs = 
 ###############################################################
 # Figure 2.c.: gain as function of copies, for embryo and chromosomal selection
 ###############################################################
-plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.rerun = FALSE)
+plot_BB_accuracy <- function(params, save.figs = TRUE, force.rerun = FALSE)
 {
   if(!("loss.type" %in% names(params)))
     params$loss.type <- "disease" # default
@@ -287,15 +287,24 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   if(save.figs)
   {
     # Save results to file: 
-    save(params, loss.type, loss.params, gain.res, overall.plot.time, file=paste0(params$loss.type, "_gain_chrom.Rdata"))
-    jpeg(paste0(figs_dir, params$loss.type, '_gain_chrom.jpg'))
+    save(params, loss.type, loss.params, gain.res, overall.plot.time, legend.vec, file=paste0(params$loss.type, "_gain_chrom.Rdata"))
+    jpeg(paste0(figs_dir, params$loss.type, '_gain_chrom.jpg'),  width = 400, height = 250, units='mm', res = 300)
   }
+#  load(paste0(params$loss.type, "_gain_chrom.Rdata"))
   n.algs <- length(params$alg.str)
   plot(params$c.vec, gain.res$gain.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
        xaxt="n", cex=1.25, ylim = c(min(0,min(gain.res$gain.mat)), max(0, max(gain.res$gain.mat)))) # 
   #     main=paste0("Gain for ", loss.type, " loss, M=", params$M, " C=", params$C, " T=", params$T))
   for(j in 2:n.algs)
     lines(params$c.vec, gain.res$gain.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
+  plot.loss = 0
+  if(plot.loss)
+  {
+  plot(params$c.vec, gain.res$loss.mat[,1], xlab="C", ylab="Gain", type="b", col=col.vec[1],
+       xaxt="n", cex=1.25, ylim = c(min(0,min(gain.res$loss.mat)), max(0, max(gain.res$loss.mat)))) # 
+  for(j in 2:n.algs)
+    lines(params$c.vec, gain.res$loss.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
+  }
   grid(NULL, NULL, lwd = 2)
   legend(0.7 * max(params$c.vec), 0.275*max(gain.res$gain.mat),   lwd=c(2,2), 
          legend.vec, col=col.vec[1:n.algs], cex=1.25, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
@@ -305,7 +314,18 @@ plot_BB_accuracy <- function(params, time.iters = 100, save.figs = TRUE, force.r
   if(save.figs)
     dev.off()
   
-  # save also running times: 
+  # plot also running times: 
+  jpeg(paste0(figs_dir, params$loss.type, '_runtime.jpg'),  width = 400, height = 250, units='mm', res = 300)
+  plot(params$c.vec, gain.res$runtime.mat[,1], xlab="C", ylab="Run time (sec.)", type="b", col=col.vec[1],
+       xaxt="n", cex=1.25, ylim = c(min(0,min(gain.res$runtime.mat)), max(0, max(gain.res$runtime.mat)))) # 
+  for(j in 2:n.algs)
+    lines(params$c.vec, gain.res$runtime.mat[,j], type="b", col=col.vec[j]) # compare to gain just form embryo selection 
+  grid(NULL, NULL, lwd = 2)
+#  legend(0.7 * max(params$c.vec), 0.275*max(gain.res$gain.mat),   lwd=c(2,2), 
+#         legend.vec, col=col.vec[1:n.algs], cex=1.25, box.lwd = 0,box.col = "white",bg = "white") #  y.intersp=0.8, cex=0.6) #  lwd=c(2,2),
+  axis(1, 2:max(params$c.vec), cex.axis=1.25, labels=c(2:max(params$c.vec)))
+  if(save.figs)
+    dev.off()
   
 } # end plot accuracy
 ###############################################################

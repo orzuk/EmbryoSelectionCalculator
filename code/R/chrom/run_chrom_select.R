@@ -69,23 +69,19 @@ if(run.plots)  # New: plots for paper:
   params$iters <- 5
   loss.params$n.blocks = 4 
   params$loss.type <- "disease"
-  params$M <- 8  # reduce to run fast !! 
-  plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
+  params$M <- 8  # reduce to run fast !!  
   
   
-  params$c.vec <- 2:5 # :10
-  params$iters <- 5
+  params$c.vec <- 2:10
+  params$iters <- 100
   loss.params$n.blocks = 13
   loss.params$eta <- 0.0
   loss.params$sdr_to_int <- "randomization" # randomization"  # "svd"
   params$loss.type <- "stabilizing"
   params$M <- 23  # reduce to run fast !! 
   
-  plot_BB_accuracy(params, time.iters = 10, save.figs = FALSE, force.rerun = FALSE)
+  plot_BB_accuracy(params, save.figs = TRUE, force.rerun = FALSE)
 }
-
-
-
 
 
 
