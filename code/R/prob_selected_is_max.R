@@ -10,6 +10,8 @@ library(mvtnorm) # for multidimensional Gaussians
 library(cubature) # for multidimensional integration 
 source('truncated_sum_norm_cdf.R')
 
+
+# Compute probability that the selected embryo yields the maximal trait value
 prob.selected.is.max <- function(n, h2z, h2ps, method.str='numeric')
 {	
   if(method.str == 'numeric')
@@ -30,6 +32,7 @@ prob.selected.is.max <- function(n, h2z, h2ps, method.str='numeric')
     return( mean(max.col(PS) == max.col(z)) ) # find indices maximizing and compare
   }
 }
+
 
 # Internal function: Probability of correct selection conditioned on y_max, eps of y_max
 prob.selected.integrand <- function(arg.vec, n, h2z, h2ps)

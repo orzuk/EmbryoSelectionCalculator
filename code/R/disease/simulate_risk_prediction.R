@@ -5,7 +5,7 @@ library(ggplot2)
 library(lqmm) # for making matrices positive definite so mvrnorm works
 library(tmvtnorm) # For the MVN integration approach
 
-### RISK PREDICTION USING MONTE CARLO SIMULATION #####
+### RISK PREDICTION USING MONTE CARLO SIMULATION, for general multivariate case with general loss #####
 
 # Use simulation to predict the risk of disease 1 through M (R_1....R_M) for
 # an embryo with polygenic score vector, Z. 

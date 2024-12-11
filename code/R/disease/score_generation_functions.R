@@ -1,4 +1,4 @@
-#### FUNCTIONS #####
+#### FUNCTIONS implementing different losses #####
 
 # generates a covariance matrix given a correlation matrix and list of variances
 generate_Sigma <- function(variances, correlation_matrix) {
@@ -65,6 +65,7 @@ generate_matrices_for_sim <- function(cor, pgs, h2, N_embryos){
   # diag(final_matrix) - rep(1, nrow(final_matrix))
   # 
 }
+
 
 # General function to generate scores for Z, E_E, or E_G:
 generate_single_component_score <- function(Sigma, Kin_Matrix) {

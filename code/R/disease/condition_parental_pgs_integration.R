@@ -1,3 +1,4 @@
+# Compute conditional gain given the parents scores
 gain_conditional_parent_pgs <- function(mean_parental_pgs, N, h2_pgs, k, ..) {
   return(1 - (integrate(selected_conditional_prevalence, -Inf, Inf, mean_parental_pgs = mean_parental_pgs, 
                         N = N, h2_pgs = h2_pgs, k = k)$value /

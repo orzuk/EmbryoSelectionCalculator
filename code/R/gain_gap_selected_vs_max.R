@@ -14,4 +14,3 @@ gain_gap_selected_vs_max_embryo <- function(n, sigma_z, h2z, h2ps, method.str)
 
 # Usage example: 
 gain_gap_selected_vs_max_embryo(1000, 1, 0.8, 0.3, 'exact')
-  

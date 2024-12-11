@@ -40,6 +40,7 @@ gauss_poly <- function(t, n)
 }
 
 
+
 # Mean gap between selected embryo (top PS) and best embryo (top phenotype z)
 # n - # of embryos
 # Sigma.T - variance-covariance matrix of traits
